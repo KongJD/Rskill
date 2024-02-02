@@ -57,3 +57,21 @@ gtf="/public/reference/gtf/gencode/gencode.v25.annotation.gtf.gz"
 featureCounts -T 5 -p -t exon -g gene_id  -a $gtf -o  all.id.txt  1>counts.id.log 2>&1 &
 ```
 
+#### 差异分析
+
+```R
+
+ suppressMessages(library(DESeq2)) 
+ colData <- data.frame(row.names=colnames(exprSet), group_list=group_list) 
+ dds <- DESeqDataSetFromMatrix(countData = exprSet,
+                                colData = colData,
+                                design = ~ group_list)
+  dds <- DESeq(dds)
+ 
+  res <- results(dds, contrast=c("group_list","treat_2","control"))
+  resOrdered <- res[order(res$padj),]
+  head(resOrdered)
+  DEG_treat_2=as.data.frame(resOrdered)
+  write.csv(DEG_treat_2,"DEG_treat_2_deseq2.results.csv")
+
+```
