@@ -38,5 +38,22 @@ trim_galore -q 25 --phred33 --length 36 -e 0.1 --stringency 3 --paired -o $dir  
 
 ```shell
 step4:
+lls *gz|cut -d"_" -f 1 |sort -u |while read id;do
+ls -lh ${id}_1_val_1.fq.gz   ${id}_2_val_2.fq.gz 
+hisat2 -p 10 -x /public/reference/index/hisat/hg38/genome -1 ${id}_1_val_1.fq.gz   -2 ${id}_2_val_2.fq.gz  -S ${id}.hisat.sam
+done
+
+ls *.sam|while read id ;do (samtools sort -O bam -@ 5  -o $(basename ${id} ".sam").bam   ${id});done
+rm *.sam 
+ls *.bam |xargs -i samtools index {}
+# ls *.bam |xargs -i samtools flagstat -@ 10  {}  > 
+ls *.bam |while read id ;do ( nohup samtools flagstat -@ 1 $id >  $(basename ${id} ".bam").flagstat  & );done
 
 ```
+
+```shell
+step5:
+gtf="/public/reference/gtf/gencode/gencode.v25.annotation.gtf.gz"   
+featureCounts -T 5 -p -t exon -g gene_id  -a $gtf -o  all.id.txt  1>counts.id.log 2>&1 &
+```
+
