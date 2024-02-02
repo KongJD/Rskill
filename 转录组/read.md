@@ -54,6 +54,7 @@ ls *.bam |while read id ;do ( nohup samtools flagstat -@ 1 $id >  $(basename ${i
 step5:
 gtf="/public/reference/gtf/gencode/gencode.v25.annotation.gtf.gz"   
 featureCounts -T 5 -p -t exon -g gene_id  -a $gtf -o  all.id.txt  1>counts.id.log 2>&1 &
+|htseq-count -f bam -r pos ../clean/sample.bam  /public/reference/gtf/gencode/gencode.v25.annotation.gtf.gz > SRR1039508.count.txt 
 ```
 
 #### 差异分析
