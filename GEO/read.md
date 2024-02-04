@@ -4,7 +4,6 @@
 背景：https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE42872
 ```
 
-
 #### 基本流程：
 
 ```R
@@ -33,7 +32,7 @@ dat_final <- dat[rownames(dat) %in% ids$probe_id,]
 ids <- ids[match(rownames(dat_final), ids$probe_id),]
 
 # 探针对应的基因一样时选平均数最大的
-tmp <- by(dat_final, ids$symbol, function (x) {
+tmp <- by(dat_final, ids$symbol, function(x) {
   rownames(x)[which.max(rowMeans(x))]
 })
 dat_final_res <- dat_final[tmp,]
@@ -190,6 +189,11 @@ if (T) {
   ggsave(g_kegg, filename = 'kegg_up_down.png')
 
   ###  GSEA 
+  data(geneList, package = "DOSE")
+  geneList = final$logFC
+  names(geneList) = final$ENTREZID
+  geneList = sort(geneList, decreasing = T)
+  
   kk_gse <- gseKEGG(geneList = geneList,
                     organism = 'hsa',
                     nPerm = 1000,
