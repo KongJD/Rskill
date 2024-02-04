@@ -163,9 +163,26 @@ if (T) {
   kegg_up_dt <- as.data.frame(kk.up)
   down_kegg <- kegg_down_dt[kegg_down_dt$pvalue < 0.05,]; down_kegg$group = -1
   up_kegg <- kegg_up_dt[kegg_up_dt$pvalue < 0.05,]; up_kegg$group = 1
-  source('functions.R')
+  
+  kegg_plot <- function(up_kegg,down_kegg){
+    dat=rbind(up_kegg,down_kegg)
+    colnames(dat)
+    dat$pvalue = -log10(dat$pvalue)
+    dat$pvalue=dat$pvalue*dat$group 
+    
+    dat=dat[order(dat$pvalue,decreasing = F),]
+    
+    g_kegg<- ggplot(dat, aes(x=reorder(Description,order(pvalue, decreasing = F)), y=pvalue, fill=group)) + 
+      geom_bar(stat="identity") + 
+      scale_fill_gradient(low="blue",high="red",guide = FALSE) + 
+      scale_x_discrete(name ="Pathway names") +
+      scale_y_continuous(name ="log10P-value") +
+      coord_flip() + theme_bw()+theme(plot.title = element_text(hjust = 0.5))+
+      ggtitle("Pathway Enrichment") 
+  }
+  
   g_kegg = kegg_plot(up_kegg, down_kegg)
-  print(g_kegg)
+
 
   ggsave(g_kegg, filename = 'kegg_up_down.png')
 
@@ -214,7 +231,6 @@ if (T) {
     })
   }
   
-
   n1 = c('gene_up', 'gene_down', 'gene_diff')
   n2 = c('BP', 'MF', 'CC')
   for (i in 1:3) {
