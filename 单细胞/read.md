@@ -66,6 +66,38 @@ metadata = df
 ```
 
 ```R
-## 2.
+## 2.表达矩阵画图探索
+group_list = metadata$g
+table(group_list)
+cg = names(tail(sort(apply(dat, 1, sd)), 100)) ##取表达量标准差最大的100行的行名
 
+library(pheatmap)
+mat = log2(dat[cg,] + 0.01)
+pheatmap(mat, show_colnames = F, show_rownames = F,)
+n = t(scale(t(mat)))
+n[n > 2] = 2
+n[n < -2] = -2
+ac = data.frame(g = group_list)
+rownames(ac) = colnames(n)
+pheatmap(n, show_colnames = F, show_rownames = F,
+         annotation_col = ac,
+)
+
+## pca图
+dat_back = dat
+dat = dat_back
+dat = t(dat)
+dat = as.data.frame(dat)
+dat = cbind(dat, group_list)
+dat[, ncol(dat)]
+library("FactoMineR")
+library("factoextra")
+dat.pca <- PCA(dat[, -ncol(dat)], graph = FALSE)
+fviz_pca_ind(dat.pca, repel = T,
+             geom.ind = "point", # show points only (nbut not "text")只显示点不显示文本
+             col.ind = dat$group_list, # color by groups 颜色组
+             # palette = c("#00AFBB", "#E7B800"),
+             addEllipses = TRUE, # Concentration ellipses 集中成椭圆
+             legend.title = "Groups"
+)
 ```
