@@ -178,11 +178,11 @@ ggscatter(df, x = "X", y = "Y", color = "g"
 ```R
 ## 4.基因数量
 library(ggpubr)
-ggviolin(df, x = "all", y = "n_g", fill = "all", 
+ggviolin(df, x = "all", y = "n_g", fill = "all",
          add = "boxplot", add.params = list(fill = "white"))
 ggviolin(df, x = "plate", y = "n_g", fill = "plate",
          #palette = c("#00AFBB", "#E7B800", "#FC4E07"),
          add = "boxplot", add.params = list(fill = "white"))
-ggviolin(df, x = "g", y = "n_g", fill = "g", 
-         add = "boxplot", add.params = list(fill = "white"))  +  stat_compare_means()
+ggviolin(df, x = "g", y = "n_g", fill = "g",
+         add = "boxplot", add.params = list(fill = "white")) + stat_compare_means()
 ```
