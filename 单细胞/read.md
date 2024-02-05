@@ -134,6 +134,43 @@ ggscatter(cv_per_gene, x = 'log10mean', y = 'log10cv2',
 
 ```R
 ## 3.批次效应
+dat_back = dat
+dat = dat_back
+dat = t(dat)
+dat = as.data.frame(dat)
+dat = cbind(dat, plate)
+table(dat$plate)
+library("FactoMineR")
+library("factoextra")
 
+dat.pca <- PCA(dat[, -ncol(dat)], graph = FALSE)
+fviz_pca_ind(dat.pca, #repel =T,
+             geom.ind = "point", # show points only (nbut not "text")
+             col.ind = dat$plate, # color by groups
+             #palette = c("#00AFBB", "#E7B800"),
+             addEllipses = TRUE, # Concentration ellipses
+             legend.title = "Groups"
+)
+ggsave('all_cells_PCA_by_plate.png')
+
+library(Rtsne)
+dat_matrix <- t(dat_back)
+
+
+dat_matrix = log2(dat_matrix + 0.01)
+set.seed(42)
+tsne_out <- Rtsne(dat_matrix, pca = FALSE, perplexity = 30, theta = 0.0) # Run TSNE
+plot(tsne_out$Y, col = plate)
+# https://distill.pub/nc16/misread-tsne/
+
+
+library(ggpubr)
+df = as.data.frame(tsne_out$Y)
+colnames(df) = c("X", 'Y')
+df$plate = plate
+df$g = metadata$g
+ggscatter(df, x = "X", y = "Y", color = "g"
+          # palette = c("#00AFBB", "#E7B800" ) 
+)
 
 ```
