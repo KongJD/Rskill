@@ -134,7 +134,7 @@ ggscatter(cv_per_gene, x = 'log10mean', y = 'log10cv2',
 ```
 
 ```R
-## 3.批次效应
+## 3.批次效应（PCA）
 dat_back = dat
 dat = dat_back
 dat = t(dat)
@@ -186,3 +186,4 @@ ggviolin(df, x = "plate", y = "n_g", fill = "plate",
 ggviolin(df, x = "g", y = "n_g", fill = "g",
          add = "boxplot", add.params = list(fill = "white")) + stat_compare_means()
 ```
+
