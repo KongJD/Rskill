@@ -6,6 +6,7 @@ https://satijalab.org/seurat/articles/get_started_v5_new
 ```
 
 #### 基本流程
+
 ```properties
 ## 1. 上游分析：略
 见上述的转录组的流程到 featurecounts 得到 原始的表达矩阵
@@ -172,5 +173,16 @@ df$g = metadata$g
 ggscatter(df, x = "X", y = "Y", color = "g"
           # palette = c("#00AFBB", "#E7B800" ) 
 )
+```
 
+```R
+## 4.基因数量
+library(ggpubr)
+ggviolin(df, x = "all", y = "n_g", fill = "all", 
+         add = "boxplot", add.params = list(fill = "white"))
+ggviolin(df, x = "plate", y = "n_g", fill = "plate",
+         #palette = c("#00AFBB", "#E7B800", "#FC4E07"),
+         add = "boxplot", add.params = list(fill = "white"))
+ggviolin(df, x = "g", y = "n_g", fill = "g", 
+         add = "boxplot", add.params = list(fill = "white"))  +  stat_compare_means()
 ```
