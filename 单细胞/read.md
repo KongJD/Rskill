@@ -219,6 +219,43 @@ pheatmap(n, show_colnames = F, show_rownames = F,
 
 ```R
 ## 6. Securat 流程
+library(Seurat)
+## 1.读入数据
+scdata <- Read10X(data.dir = "./data/10x/filtered_gene_bc_matrices/hg19/")
+## 2.创建Seurat对象
+scobj <- CreateSeuratObject(counts = scdata,
+                            project = "pbmc3k",
+                            min.cells = 3,
+                            min.features = 200)
+## 3.数据预处理、降维、分群
+library(dplyr)
+scobj <- scobj %>%
+  NormalizeData() %>%
+  FindVariableFeatures() %>%
+  ScaleData() %>%
+  RunPCA() %>%
+  RunUMAP(dims = 1:10) %>%
+  FindNeighbors() %>%
+  FindClusters(resolution = 0.5)
 
+DimPlot(scobj, reduction = "umap", label = TRUE)
+
+## 4.注释
+## 这步较为麻烦
+Idents(scobj) <- "seurat_clusters"
+scobj <- RenameIdents(scobj,
+                      "0" = "Naive CD4+ T",
+                      "1" = "CD14+ Mono",
+                      "2" = "Memory CD4+",
+                      "3" = "B cell",
+                      "4" = "CD8+ T",
+                      "5" = "FCGR3A+ Mono",
+                      "6" = "NK",
+                      "7" = "DC",
+                      "8" = "Platelet"
+)
+## 5.可视化
+DimPlot(scobj, reduction = "umap", label = T, repel = T) + NoLegend()
+## 后面专门补充这块Securat
 ```
 
