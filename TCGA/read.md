@@ -100,3 +100,8 @@ nrDEG = DESeq2_DEG[, c(2, 6)]
 colnames(nrDEG) = c('log2FoldChange', 'pvalue')
 draw_h_v(exprSet, nrDEG, 'DEseq2', group_list, 1)
 ```
+```R
+## 3.
+
+
+```
