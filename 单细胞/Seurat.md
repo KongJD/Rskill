@@ -8,6 +8,7 @@ https://github.com/carmonalab/ProjecTILs
 ```
 
 #### 1.基本步骤
+
 ```R
 rm(list = ls())
 
@@ -41,7 +42,9 @@ scobj <- RenameIdents(scobj,
 )
 DimPlot(scobj, reduction = "umap", label = T, repel = T) + NoLegend()
 ```
+
 #### 1. 质控、筛选、找高变基因、
+
 ```R
 scobj <- CreateSeuratObject(counts = scdata, project = "pbmc",
                             min.cells = 3, min.features = 200)
@@ -104,5 +107,22 @@ ggplot(t1, aes(x = vf_vst_counts_mean, y = vf_vst_counts_variance.standardized, 
   theme_bw() +
   labs(x = "Average Expression", y = "Standardized Variance") +
   geom_text_repel(data = t1[top10,], label = top10, color = "black")
+```
+
+#### 2.数据缩放、降维
+
+```R
+### 降维之前的必备操作
+### 缩放的效果是，基因的平均值是0，方差是1
+## 保存时把它删掉
+scobj <- ScaleData(scobj, features = rownames(scobj))
+scale_data <- scobj@assays$RNA@layers$scale.data
+hist(apply(scale_data, 1, mean))
+hist(apply(scale_data, 1, var))
+hist(matrixStats::rowMeans2(scale_data))
+hist(matrixStats::rowVars(scale_data))
+
+## PCA线性降维
+
 ```
 
