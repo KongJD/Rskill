@@ -5,6 +5,7 @@
 https://satijalab.org/seurat/articles/get_started_v5_new
 https://github.com/gao-lab/GLUE/
 https://github.com/carmonalab/ProjecTILs
+https://pair-code.github.io/understanding-umap/
 ```
 
 #### 1.基本步骤
@@ -12,6 +13,7 @@ https://github.com/carmonalab/ProjecTILs
 ```R
 rm(list = ls())
 
+options(BioC_mirror = "https://mirrors.tuna.tsinghua.edu.cn/bioconductor")
 library(Seurat)
 scdata <- Read10X(data.dir = "./data/10x/filtered_gene_bc_matrices/hg19")
 scobj <- CreateSeuratObject(counts = scdata, project = "pbmc",
@@ -43,7 +45,7 @@ scobj <- RenameIdents(scobj,
 DimPlot(scobj, reduction = "umap", label = T, repel = T) + NoLegend()
 ```
 
-#### 1. 质控、筛选、找高变基因、
+#### 1. 质控、筛选、找高变基因
 
 ```R
 scobj <- CreateSeuratObject(counts = scdata, project = "pbmc",
@@ -123,6 +125,162 @@ hist(matrixStats::rowMeans2(scale_data))
 hist(matrixStats::rowVars(scale_data))
 
 ## PCA线性降维
+scobj <- RunPCA(scobj, features = VariableFeatures(object = scobj))
+DimPlot(scobj, reduction = "pca")
+
+##pca data
+pca_data <- as.data.frame(scobj@reductions$pca@cell.embeddings)
+ggplot(pca_data, aes(x = PC_1, y = PC_2, color = "red")) + geom_point()
+
+### 选择合适的PCA维度
+ElbowPlot(scobj) ##这里图片显示10之后pca就没啥变化了
+
+##umap非线性降维，依赖pca结果
+scobj <- RunUMAP(scobj, dims = 1:10)
+umap_data <- as.data.frame(scobj@reductions$umap@cell.embeddings)
+ggplot(umap_data, aes(x = umap_1, y = umap_2, color = "red")) + geom_point()
+```
+
+#### 3.聚类分群
+
+```R
+### 聚类分群
+### 找紧邻,dims = 1:10 跟UMAP相同
+scobj <- FindNeighbors(scobj, dims = 1:10)
+### 分群(需要在找近邻后)
+scobj <- FindClusters(scobj, resolution = 0.5) ### 会在metadata中增加两列数据"RNA_snn_res.0.5" "seurat_clusters"
+DimPlot(scobj, reduction = "umap", label = T) ## 将umap结果分群
+
+metdaat <- scobj@meta.data
+scobj <- FindClusters(scobj, resolution = seq(0.2, 1.2, 0.2)) ## 分辨率改为0.2到1.2 ，分群结果细致
+DimPlot(scobj, reduction = "umap", label = T) ## 将umap结果分群
+
+library(clustree)
+clustree(scobj) ## 看不同分辨率下哪些群被分的 更细致了
+
+### 选择特定分辨率得到的分群此处为RNA_snn_res.0.5
+scobj@meta.data$seurat_clusters <- scobj@meta.data$RNA_snn_res.0.5
+DimPlot(scobj, reduction = "umap", label = T)
+```
+
+#### 4.分群注释
+
+```R
+### 分群注释
+### 先分大群, marker哪里来
+### http://bio-bigdata.hrbmu.edu.cn/CellMarker/ (此网站找细胞的marker基因)
+### B: "MS4A1", "CD79A"
+### NK: "GNLY", "NKG7"
+### T: "CD3E","CD8A","CD4","IL7R", 
+### Monocyte: "CD14", "FCGR3A", "LYZ"
+### DC "FCER1A"
+### Platelet: "PPBP"
+
+"MS4A1" %in% rownames(scobj)
+"CD79A" %in% rownames(scobj)
+### 使用VlnPlot画marker小提琴图
+VlnPlot(scobj, features = c("MS4A1", "CD79A"))
+### 使用FeaturePlot画出特征分布图
+FeaturePlot(scobj, features = c("MS4A1", "CD79A"), order = TRUE, ncol = 2)
+
+
+VlnPlot(scobj, features = c("GNLY", "NKG7"))
+FeaturePlot(scobj, features = c("GNLY", "NKG7"), order = TRUE, ncol = 2)
+
+VlnPlot(scobj, features = c("CD3E", "CD8A", "CD4", "IL7R"))
+FeaturePlot(scobj, features = c("CD3E", "CD8A", "CD4", "IL7R"), order = TRUE, ncol = 2)
+
+VlnPlot(scobj, features = c("CD14", "FCGR3A", "LYZ"))
+FeaturePlot(scobj, features = c("CD14", "FCGR3A", "LYZ"), order = TRUE, ncol = 2)
+
+VlnPlot(scobj, features = c("FCER1A", "PPBP"))
+FeaturePlot(scobj, features = c("FCER1A", "PPBP"), order = TRUE, ncol = 2)
+
+marker_genes <- c("MS4A1", "CD79A",
+                  "GNLY", "NKG7",
+                  "CD3E", "CD8A", "CD4", "IL7R",
+                  "CD14", "FCGR3A", "LYZ",
+                  "FCER1A",
+                  "PPBP"
+)
+FeaturePlot(scobj, features = marker_genes, order = TRUE, ncol = 5)
+
+### 汇总画图
+marker_genes <- c("MS4A1", "CD79A",
+                  "GNLY", "NKG7",
+                  "CD3E", "CD8A", "CD4", "IL7R",
+                  "CD14", "FCGR3A", "LYZ",
+                  "FCER1A",
+                  "PPBP"
+)
+FeaturePlot(scobj, features = marker_genes, order = TRUE, ncol = 5)
+
+### 再确定细节
+marker_genes <- c("CD3E", "CD4", "CD8A",
+                  "CCR7", "SELL", "CREM", "TCF7", "S100A4")
+FeaturePlot(scobj, features = marker_genes, order = T, ncol = 5)
+
+marker_genes <- c("CCR7", "SELL", "CREM", "TCF7")
+FeaturePlot(scobj, features = marker_genes, order = T, ncol = 2)
+marker_genes <- c("RPS12", "FASLG")
+FeaturePlot(scobj, features = marker_genes, order = T, ncol = 2)
+
+### 不好确定的时候,换一种作图方式
+library(Nebulosa)
+marker_genes <- c("CCR7", "SELL", "TCF7", "S100A4")
+plot_density(scobj, features = marker_genes) + plot_layout(ncol = 2)
+
+### 确定不了的时候自己分析maker
+all_markers <- FindAllMarkers(object = scobj)
+all_markers$rank <- all_markers$pct.1 / all_markers$pct.2
+## 这里得到了差异表达矩阵，后续会写一下对它单细胞的富集分析(见下一篇)
+## all_markers 这里自己找的时候找特异性强的，尽量其他群不表达
+## 这里找avg_logfc差异倍数大的,pct1大一点，pct2小点，这样特异性强
+marker_genes <- c("RPS12", "FASLG")
+FeaturePlot(scobj, features = marker_genes, order = T, ncol = 2)
+
+library(dplyr)
+
+top10_markers <- all_markers %>%
+  group_by(cluster) %>%
+  arrange(desc(avg_log2FC)) %>%
+  slice(1:10) %>%
+  ungroup()
+```
+
+#### 5. 确定注释结果
+
+```R
+### 确认群的个数
+Idents(scobj) <- "seurat_clusters"
+head(Idents(scobj))
+## 给每个群加注释
+scobj <- RenameIdents(scobj,
+                      "0" = "Naive CD4+ T",
+                      "1" = "CD14+ Mono",
+                      "2" = "Memory CD4+",
+                      "3" = "B cell",
+                      "4" = "CD8+ T",
+                      "5" = "FCGR3A+ Mono",
+                      "6" = "NK",
+                      "7" = "DC",
+                      "8" = "Platelet"
+)
+DimPlot(scobj, label = T)
+head(Idents(scobj))
+scobj@meta.data$celltype = Idents(scobj)
+metadata <- scobj@meta.data
+### 保存结果
+saveRDS(scobj, file = "output/Seurat_single_sample_scobj.rds")
+```
+
+#### 6.注释结果可视化
+
+```R
+
 
 ```
+
+
+
 
