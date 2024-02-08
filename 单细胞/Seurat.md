@@ -277,8 +277,77 @@ saveRDS(scobj, file = "output/Seurat_single_sample_scobj.rds")
 #### 6.注释结果可视化
 
 ```R
+DimPlot(scobj, reduction = "umap", label = T)
+DimPlot(scobj, reduction = "umap", label = T) + NoLegend()
+scCustomize::DimPlot_scCustom(scobj, figure_plot = TRUE)
 
+### 各个细胞群，画图展示
+### 出现在scobj@meta.data 中的 列都可以FeaturePlot 展示
+scobj@meta.data$cd14 <- ifelse(scobj@meta.data$celltype == "CD14+ Mono", 1, 0)
+FeaturePlot(scobj, features = "cd14")
 
+desgin <- model.matrix(~0 + metadata$celltype)
+desgin <- as.data.frame(desgin)
+colnames(desgin) <- levels(metadata$celltype)
+scobj@meta.data <- cbind(scobj@meta.data, desgin)
+FeaturePlot(scobj, features = levels(metadata$celltype))
+
+### 可视化展示DotPlot
+### 因子来限定细胞的顺序
+Idents(scobj) <- factor(Idents(scobj), levels = c("B cell",
+                                                  "NK",
+                                                  "Naive CD4+ T",
+                                                  "Memory CD4+",
+                                                  "CD8+ T",
+                                                  "CD14+ Mono",
+                                                  "FCGR3A+ Mono",
+                                                  "DC",
+                                                  "Platelet"))
+
+markers.to.plot <- c("MS4A1", "CD79A",
+                     "GNLY", "NKG7",
+                     "CD3E", "CD8A", "CD4", "IL7R",
+                     "CD14", "FCGR3A", "LYZ",
+                     "FCER1A",
+                     "PPBP")
+DotPlot(scobj, features = markers.to.plot, dot.scale = 8)
+DotPlot(scobj, features = markers.to.plot, dot.scale = 8) + RotatedAxis()
+DotPlot(scobj, features = markers.to.plot, dot.scale = 8) +
+  coord_flip() +
+  RotatedAxis()
+
+### Clustered_DotPlot
+### 可以自己挑选marker来呈现
+### 也可以使用FindAllMarkers批量提取marker
+
+all_markers <- FindAllMarkers(object = scobj)
+library(dplyr)
+top5_markers <- all_markers %>%
+  group_by(cluster) %>%
+  arrange(desc(avg_log2FC)) %>%
+  slice(1:5) %>%
+  ungroup() %>%
+  pull(gene) %>%
+  unique()
+
+DotPlot(scobj, features = top5_markers) +
+  coord_flip() +
+  RotatedAxis()
+scCustomize::Clustered_DotPlot(scobj, features = top5_markers)
+
+### marker 热图
+DoHeatmap(scobj, features = top5_markers)
+
+### Identity的大小修改，通过size参数
+DoHeatmap(scobj, features = top5_markers, size = 3)
+
+### 基因的大小修改theme(axis.text.y = element_text(size = 8))
+DoHeatmap(scobj, features = top5_markers, size = 3) +
+  theme(axis.text.y = element_text(size = 8))
+
+### subset和downsample 可以随机取每个群的细胞数
+DoHeatmap(subset(scobj, downsample = 50), features = top5_markers, size = 3) +
+  theme(axis.text.y = element_text(size = 8))
 ```
 
 
