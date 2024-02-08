@@ -6,6 +6,7 @@ https://satijalab.org/seurat/articles/get_started_v5_new
 https://github.com/gao-lab/GLUE/
 https://github.com/carmonalab/ProjecTILs
 https://pair-code.github.io/understanding-umap/
+https://www.youtube.com/watch?v=FgakZw6K1QQ&t=684s&ab_channel=StatQuestwithJoshStarmer
 ```
 
 #### 1.基本步骤
