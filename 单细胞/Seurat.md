@@ -351,6 +351,76 @@ DoHeatmap(subset(scobj, downsample = 50), features = top5_markers, size = 3) +
   theme(axis.text.y = element_text(size = 8))
 ```
 
+#### geo读取
 
+```R
+### https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE188987
+### 1.分步读入
+count_matrix <- Matrix::readMM("data/GSE188987/GSE188987_YJ_Lib9_1_matrix.mtx.gz")
+gene_id <- read.table("data/GSE188987/GSE188987_YJ_Lib9_1_features.tsv.gz")
+barcode <- read.table("data/GSE188987/GSE188987_YJ_Lib9_1_barcodes.tsv.gz")
+rownames(count_matrix) <- gene_id$V2
+colnames(count_matrix) <- barcode$V1
+
+### 2.修改后Read10X读入
+scdata1 <- Read10X(data.dir = "data/GSE188987_2/")
+```
+
+#### 画更好看的图
+
+```R
+### https://enblacar.github.io/SCpubr-book/index.html
+### https://samuel-marsh.github.io/scCustomize/
+### https://github.com/junjunlab/scRNAtoolVis
+### https://github.com/zhanghao-njmu/SCP
+### https://samuel-marsh.github.io/scCustomize
+
+if (!requireNamespace("scRNAtoolVis", quietly = TRUE)) {
+  install.packages("./resource/scRNAtoolVis-master/", type = "source", repos = NULL)
+}
+
+library(scRNAtoolVis)
+
+scobj <- readRDS(file = "output/Seurat_scobj.rds")
+all_markers <- readRDS(file = "output/Seurat_all_markers.rds")
+library(dplyr)
+top5_markers <- all_markers %>%
+  group_by(cluster) %>%
+  arrange(desc(avg_log2FC)) %>%
+  slice(1:5) %>%
+  ungroup() %>%
+  pull(gene) %>%
+  unique()
+
+AverageHeatmap(object = scobj,
+               markerGene = top5_markers)
+
+
+library(Seurat)
+DimPlot(scobj, label = T)
+metadata = scobj@meta.data
+design = model.matrix(~0 + metadata$celltype)
+design <- as.data.frame(design)
+colnames(design) = levels(metadata$celltype)
+
+scobj@meta.data <- cbind(scobj@meta.data, design)
+FeaturePlot(scobj, features = levels(metadata$celltype))
+
+### 上色
+color_use <- scCustomize::DiscretePalette_scCustomize(num_colors = 9, palette = "varibow")
+
+DimPlot(scobj, label = T, cols = color_use)
+FeaturePlot(scobj, features = "Naive CD4+ T", cols = c("lightgrey", "#FF7373"))
+
+### 批量操作
+plotlist = list()
+features = levels(metadata$celltype)
+for (i in 1:9) {
+  plotlist[[features[i]]] = FeaturePlot(scobj, features = features[i], cols = c("lightgrey", color_use[i])) + NoLegend()
+}
+
+library(patchwork)
+wrap_plots(plotlist)
+```
 
 
