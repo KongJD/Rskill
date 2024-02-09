@@ -182,5 +182,55 @@ top_markers <- all_markers %>%
   arrange(desc(avg_log2FC)) %>%
   slice(1:15) %>%
   ungroup()
+
+#### 拿到群的注释结果，进行marker对应的群注释
+Idents(scobj) <- "seurat_clusters"
+### 给每个群添加注释
+scobj <- RenameIdents(scobj,
+                      "0" = "CD14 Mono",
+                      "1" = "CD4 Naive T",
+                      "2" = "CD4 Memory T",
+                      "3" = "CD16 Mono",
+                      "4" = "B cell",
+                      "5" = "CD8 T",
+                      "6" = "NK",
+                      "7" = "T activated",
+                      "8" = "DC",
+                      "9" = "B Activated",
+                      "10" = "Mk",
+                      "11" = "pDC",
+                      "12" = "Mono/Mk Doublets",
+                      "13" = "Eryth"
+)
+DimPlot(scobj, reduction = "umap", label = T)
+scobj@meta.data$celltype = Idents(scobj)
+
+### 加入筛选细胞
+Idents(scobj) <- "seurat_clusters"
+scobj_subset <- subset(scobj, subset = seurat_clusters != 12)
+DimPlot(scobj_subset, reduction = "umap", label = T)
+
+scobj_subset1 <- subset(scobj, subset = celltype != "Mono/Mk Doublets")
+DimPlot(scobj_subset1, reduction = "umap", label = T)
+
+## 不要小群
+scobj_subset2 <- subset(scobj, subset = seurat_clusters %in% c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9))
+DimPlot(scobj_subset2, reduction = "umap", label = T)
+
+## 反选
+scobj_subset3 <- subset(scobj, subset = celltype %in% c("Mono/Mk Doublets", "Mk", "Eryth"), invert = TRUE)
+DimPlot(scobj_subset3, reduction = "umap", label = T)
+
+## 自己确定 反选
+`%notin%` <- Negate(`%in%`)
+scobj_subset4 <- subset(scobj, celltype %notin% c("Mono/Mk Doublets", "pDC", "Mk"))
+DimPlot(scobj_subset4, reduction = "umap", label = T)
+
+## 保存注释结果
+Idents(scobj) <- "celltype"
+DimPlot(scobj, reduction = "umap", label = T)
+#saveRDS(scobj,file = "output/hamony_annotaion.rds")
+
+
 ```
 
