@@ -265,6 +265,7 @@ scobj1 <- RenameIdents(scobj1,
 
 DimPlot(scobj1, reduction = "umap", label = T)
 scobj1@meta.data$celltype_sub = Idents(scobj1)
+plot_density(scobj1, c("CD8A", "CCR7"), joint = TRUE) + plot_layout(nrow = 1)
 ### 要注意reduction指定的问题
 ### https://hbctraining.github.io/scRNA-seq_online/lessons/09_merged_SC_marker_identification.html
 ### https://satijalab.org/seurat/articles/integration_introduction.html
