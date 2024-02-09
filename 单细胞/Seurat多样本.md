@@ -127,5 +127,33 @@ saveRDS(scobj, file = "out/harmoy.rds")
 #### 3.分群
 
 ```R
+### 先分大群, 
+### http://bio-bigdata.hrbmu.edu.cn/CellMarker/
+### B: "MS4A1", "CD79A"
+### NK: "GNLY", "NKG7"
+### T: "CD3E","CD8A","CD4","IL7R", 
+### Monocyte: "CD14", "FCGR3A", "LYZ"
+### DC "FCER1A"
+### Megakaryocytes/Platelet: "PPBP"
+### Erythrocytes: "HBB","HBA2"
+
+marker_genes <- c("MS4A1", "CD79A", "CD19")
+VlnPlot(scobj, features = marker_genes)
+FeaturePlot(scobj, features = marker_genes, order = TRUE, ncol = 2)
+
+marker_genes <- c("CD14", "FCGR3A", "LYZ")
+VlnPlot(scobj, features = marker_genes)
+FeaturePlot(scobj, features = marker_genes, order = TRUE, ncol = 2)
+
+### 汇总画图
+marker_genes <- c("MS4A1",
+                  "GNLY", "NKG7",
+                  "CD3E", "CD8A", "CD4", "IL7R",
+                  "CD14", "FCGR3A", "LYZ",
+                  "FCER1A",
+                  "PPBP"
+)
+FeaturePlot(scobj, features = marker_genes, order = TRUE, ncol = 5)
+
 
 ```
