@@ -94,8 +94,7 @@ ElbowPlot(scobj)
 scobj <- RunUMAP(scobj, reduction = "pca", dims = 1:15, reduction.name = "umap_native")
 ## 批次矫正
 scobj <- RunHarmony(scobj, reduction = "pca", group.by.vars = "group", reduction.save = "harmony")
-ElbowPlot(scobj)
-scobj <- RunUMAP(scobj, reduction = "harmony", dims = 1:30, reduction.name = "umap")
+scobj <- RunUMAP(scobj, reduction = "harmony", dims = 1:15, reduction.name = "umap")
 
 p1 <- DimPlot(scobj, reduction = "umap_native", group.by = "group")
 p2 <- DimPlot(scobj, reduction = "umap", group.by = "group")
