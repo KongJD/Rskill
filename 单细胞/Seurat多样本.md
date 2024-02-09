@@ -155,5 +155,15 @@ marker_genes <- c("MS4A1",
 )
 FeaturePlot(scobj, features = marker_genes, order = TRUE, ncol = 5)
 
+## cDC
+marker_genes <- c("CLEC9A","ITGAM","ITGAE","FCER1A")
+## pDC
+marker_genes <- c("IL3RA","HLA-DRA")
+
+## T细胞以及B细胞激活
+## https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4110661/
+marker_genes <- c("CCR7","SELL","CREM","CD69")
+VlnPlot(scobj, features = marker_genes)
+FeaturePlot(scobj, features = marker_genes, order = TRUE,ncol=3)
 
 ```
