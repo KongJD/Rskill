@@ -68,7 +68,7 @@ scobj <- CreateSeuratObject(counts = scdata,
 scobj@meta.data$group = "CTRL"
 ```
 
-#### 2.样本进行批次矫正
+#### 2.多样本之间进行批次矫正
 
 ```R
 ### 不批次矫正的结果 两个样本 "umap_native"和“umap”有明显的区分，矫正后样本融合在一起了
