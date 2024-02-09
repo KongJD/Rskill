@@ -68,5 +68,37 @@ scobj <- CreateSeuratObject(counts = scdata,
 scobj@meta.data$group = "CTRL"
 ```
 
-#### 2.
+#### 2.样本进行批次矫正
+
+```R
+### 不批次矫正的结果 两个样本 "umap_native"和“umap”有明显的区分，矫正后样本融合在一起了
+library(harmony)
+library(SeuratWrappers)
+
+scobj@meta.data$percent.mt <- PercentageFeatureSet(scobj, pattern = "^MT-")
+VlnPlot(scobj, features = c("nCount_RNA", "nFeature_RNA", "percent.mt"))
+
+
+## 筛选
+scobj <- subset(scobj, subset = nFeature_RNA > 200 &
+  nFeature_RNA < 1500
+  &
+  percent.mt < 5)
+
+## 标准化
+scobj <- NormalizeData(scobj)
+scobj <- FindVariableFeatures(scobj, selection.method = "vst", nfeatures = 2000)
+scobj <- ScaleData(scobj, features = rownames(scobj))
+scobj <- RunPCA(scobj, features = VariableFeatures(object = scobj), reduction.name = "pca")
+ElbowPlot(scobj)
+scobj <- RunUMAP(scobj, reduction = "pca", dims = 1:15, reduction.name = "umap_native")
+## 批次矫正
+scobj <- RunHarmony(scobj, reduction = "pca", group.by.vars = "group", reduction.save = "harmony")
+ElbowPlot(scobj)
+scobj <- RunUMAP(scobj, reduction = "harmony", dims = 1:30, reduction.name = "umap")
+
+p1 <- DimPlot(scobj, reduction = "umap_native", group.by = "group")
+p2 <- DimPlot(scobj, reduction = "umap", group.by = "group")
+p1 + p2
+```
 
