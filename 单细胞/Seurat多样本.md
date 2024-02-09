@@ -231,6 +231,39 @@ Idents(scobj) <- "celltype"
 DimPlot(scobj, reduction = "umap", label = T)
 #saveRDS(scobj,file = "output/hamony_annotaion.rds")
 
+## 对分好的1群想再分
+Idents(scobj) <- "seurat_clusters"
+## snn是shared nearest neighbors
+## nn是nearest neighbors
+scobj1 <- FindSubCluster(
+  scobj,
+  cluster = "1",
+  graph.name = "RNA_snn",
+  subcluster.name = "RNA_snn_res.0.5_c1_sub",
+  resolution = 0.5
+)
 
+Idents(scobj1) <- "RNA_snn_res.0.5_c1_sub"
+scobj1 <- RenameIdents(scobj1,
+                       "0" = "CD14 Mono",
+                       "1_0" = "CD4 Naive T",
+                       "1_1" = "CD4 Naive T",
+                       "1_2" = "CD8 Naive T",
+                       "2" = "CD4 Memory T",
+                       "3" = "CD16 Mono",
+                       "4" = "B cell",
+                       "5" = "CD8 T",
+                       "6" = "NK",
+                       "7" = "T activated",
+                       "8" = "DC",
+                       "9" = "B Activated",
+                       "10" = "Mk",
+                       "11" = "pDC",
+                       "12" = "Mono/Mk Doublets",
+                       "13" = "Eryth"
+)
+
+DimPlot(scobj1, reduction = "umap", label = T)
+scobj1@meta.data$celltype_sub = Idents(scobj1)
 ```
 
