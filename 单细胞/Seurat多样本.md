@@ -172,14 +172,15 @@ marker_genes <- c("CCR7", "SELL", "CREM", "CD69")
 plot_density(scobj, features = marker_genes) + plot_layout(ncol = 2)
 
 ### 找出所有的marker
-### 还有哪些群不确定的找它排名靠前的marker 
+### 还有哪些群不确定的找它排名靠前的marker ,查marker的文献，能查到其图谱就可以
 scobj <- JoinLayers(scobj)
 all_markers <- FindAllMarkers(scobj)
 
 library(dplyr)
 top_markers <- all_markers %>%
   group_by(cluster) %>%
-  arrange(desc(avg_log2FC))%>%
+  arrange(desc(avg_log2FC)) %>%
   slice(1:15) %>%
   ungroup()
 ```
+
