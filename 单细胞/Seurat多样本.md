@@ -124,7 +124,7 @@ scobj@reductions$umap_naive <- NULL
 saveRDS(scobj, file = "out/harmoy.rds")
 ```
 
-#### 3.
+#### 3.分群
 
 ```R
 
