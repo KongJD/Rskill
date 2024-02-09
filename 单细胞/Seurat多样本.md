@@ -99,5 +99,27 @@ scobj <- RunUMAP(scobj, reduction = "harmony", dims = 1:15, reduction.name = "um
 p1 <- DimPlot(scobj, reduction = "umap_native", group.by = "group")
 p2 <- DimPlot(scobj, reduction = "umap", group.by = "group")
 p1 + p2
+
+
+cobj <- FindNeighbors(scobj, reduction = "harmony", dims = 1:30)
+### 设置多个resolution选择合适的resolution
+scobj <- FindClusters(scobj, resolution = seq(0.2, 1.2, 0.1))
+
+library(clustree)
+clustree(scobj)
+
+## 上述看图后 resloution 结果为0.5 差不多 后面的结果跟0.5 没有区别
+scobj@meta.data$seurat_clusters <- scobj@meta.data$RNA_snn_res.0.5
+Idents(scobj) <- "seurat_clusters"
+DimPlot(scobj, reduction = "umap", label = T)
+DimPlot(scobj, reduction = "umap", group.by = "group")
+DimPlot(scobj, reduction = "umap", split.by = "group")
+
+scobj@assays$RNA$scale.data <- as.matrix(scobj@assays$RNA$scale.data)
+scobj@assays$RNA$scale.data <- matrix()
+
+FeaturePlot(scobj, features = "MS4A1", order = TRUE, reduction = "umap")
+scobj@reductions$umap_naive <- NULL
+saveRDS(scobj, file = "out/harmoy.rds")
 ```
 
