@@ -156,14 +156,30 @@ marker_genes <- c("MS4A1",
 FeaturePlot(scobj, features = marker_genes, order = TRUE, ncol = 5)
 
 ## cDC
-marker_genes <- c("CLEC9A","ITGAM","ITGAE","FCER1A")
+marker_genes <- c("CLEC9A", "ITGAM", "ITGAE", "FCER1A")
 ## pDC
-marker_genes <- c("IL3RA","HLA-DRA")
+marker_genes <- c("IL3RA", "HLA-DRA")
 
 ## T细胞以及B细胞激活
 ## https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4110661/
-marker_genes <- c("CCR7","SELL","CREM","CD69")
+marker_genes <- c("CCR7", "SELL", "CREM", "CD69")
 VlnPlot(scobj, features = marker_genes)
-FeaturePlot(scobj, features = marker_genes, order = TRUE,ncol=3)
+FeaturePlot(scobj, features = marker_genes, order = TRUE, ncol = 3)
 
+### 不好确定的时候,换一种作图方式(上述的群不好分辨的时候)
+library(Nebulosa)
+marker_genes <- c("CCR7", "SELL", "CREM", "CD69")
+plot_density(scobj, features = marker_genes) + plot_layout(ncol = 2)
+
+### 找出所有的marker
+### 还有哪些群不确定的找它排名靠前的marker 
+scobj <- JoinLayers(scobj)
+all_markers <- FindAllMarkers(scobj)
+
+library(dplyr)
+top_markers <- all_markers %>%
+  group_by(cluster) %>%
+  arrange(desc(avg_log2FC))%>%
+  slice(1:15) %>%
+  ungroup()
 ```
