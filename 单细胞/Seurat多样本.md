@@ -31,8 +31,8 @@ scobj2 <- CreateSeuratObject(counts = scdata2,
 scobj2@meta.data$group = "CTRL"
 
 ### 合并数据
-data <- list(scobj1,scobj2)
-scobj <- merge(x=data[[1]], y = data[-1])
+data <- list(scobj1, scobj2)
+scobj <- merge(x = data[[1]], y = data[-1])
 
 ### 也可以在GEO下载数据后自己调整
 ### https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE96583
@@ -123,3 +123,8 @@ scobj@reductions$umap_naive <- NULL
 saveRDS(scobj, file = "out/harmoy.rds")
 ```
 
+#### 3.
+
+```R
+
+```
