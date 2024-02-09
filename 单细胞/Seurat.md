@@ -394,8 +394,11 @@ top5_markers <- all_markers %>%
 
 AverageHeatmap(object = scobj,
                markerGene = top5_markers)
+markerVocalno(markers = all_markers,
+              topn = 5,
+              labelCol = ggsci::pal_npg()(9))
 
-
+####
 library(Seurat)
 DimPlot(scobj, label = T)
 metadata = scobj@meta.data
