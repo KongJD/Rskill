@@ -442,5 +442,48 @@ interferon.response <- FindMarkers(scobj,
                                    ident.2 = "CD14 Mono_CTRL",
                                    logfc.threshold = 0)
 
+gene_df <- interferon.response
+geneList <- gene_df$avg_log2FC
+names(geneList) = rownames(gene_df)
+geneList = sort(geneList, decreasing = TRUE)
+library(clusterProfiler)
+#################################################################
+### 1.kegg 通路
+### https://www.gsea-msigdb.org/gsea/index.jsp
+genesets <- read.gmt("data/c2.cp.kegg.v2022.1.Hs.symbols.gmt")
+y <- GSEA(geneList, TERM2GENE = genesets)
+yd <- as.data.frame(y)
+### 看整体分布
+dotplot(y, showCategory = 12, split = ".sign") + facet_grid(~.sign)
+library(enrichplot)
+gseaplot2(y, "KEGG_CYTOSOLIC_DNA_SENSING_PATHWAY", color = "red", pvalue_table = T)
+gseaplot2(y, "KEGG_RIG_I_LIKE_RECEPTOR_SIGNALING_PATHWAY", color = "red", pvalue_table = T)
+
+### 2.hallmarks gene set
+genesets <- read.gmt("data/h.all.v2022.1.Hs.symbols.gmt")
+### GSEA
+y <- GSEA(geneList, TERM2GENE = genesets)
+yd <- as.data.frame(y)
+library(ggplot2)
+dotplot(y, showCategory = 30, split = ".sign") + facet_grid(~.sign)
+library(enrichplot)
+gseaplot2(y, "HALLMARK_INTERFERON_ALPHA_RESPONSE", color = "red", pvalue_table = T)
+
+### 3.转录因子
+## 读入转录因子
+genesets <- read.gmt("resource/ENCODE_TF_ChIP-seq_2015.txt")
+y <- GSEA(geneList, TERM2GENE = genesets)
+yd <- as.data.frame(y)
+### 看整体分布
+dotplot(y, showCategory = 30, split = ".sign") + facet_grid(~.sign)
+gseaplot2(y, "STAT2 K562 hg19", color = "red", pvalue_table = T)
+
+### 4.免疫相关基因集
+genesets <- read.gmt("data/c7.all.v2022.1.Hs.symbols.gmt")
+y <- GSEA(geneList, TERM2GENE = genesets)
+yd <- as.data.frame(y)
+### 看整体分布
+dotplot(y, showCategory = 5, split = ".sign", label_format = 60) + facet_grid(~.sign)
+gseaplot2(y, "HARALAMBIEVA_PBMC_M_M_R_II_AGE_11_22YO_VACCINATED_VS_UNVACCINATED_7YR_UP", color = "red", pvalue_table = T)
 
 ```
