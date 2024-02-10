@@ -470,7 +470,6 @@ library(enrichplot)
 gseaplot2(y, "HALLMARK_INTERFERON_ALPHA_RESPONSE", color = "red", pvalue_table = T)
 
 ### 3.转录因子
-## 读入转录因子
 genesets <- read.gmt("resource/ENCODE_TF_ChIP-seq_2015.txt")
 y <- GSEA(geneList, TERM2GENE = genesets)
 yd <- as.data.frame(y)
