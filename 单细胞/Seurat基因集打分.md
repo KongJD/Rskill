@@ -43,7 +43,7 @@ scobj@meta.data$celltype = Idents(scobj)
 DimPlot(scobj, reduction = "umap", label = T, repel = T) + NoLegend()
 ```
 
-#### 2.Seuarat基因集打分
+#### 2.Seuarat打分
 
 ```R
 ## AddModuleScore 函数
