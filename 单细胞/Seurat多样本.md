@@ -473,7 +473,6 @@ gseaplot2(y, "HALLMARK_INTERFERON_ALPHA_RESPONSE", color = "red", pvalue_table =
 genesets <- read.gmt("resource/ENCODE_TF_ChIP-seq_2015.txt")
 y <- GSEA(geneList, TERM2GENE = genesets)
 yd <- as.data.frame(y)
-### 看整体分布
 dotplot(y, showCategory = 30, split = ".sign") + facet_grid(~.sign)
 gseaplot2(y, "STAT2 K562 hg19", color = "red", pvalue_table = T)
 
@@ -481,8 +480,6 @@ gseaplot2(y, "STAT2 K562 hg19", color = "red", pvalue_table = T)
 genesets <- read.gmt("data/c7.all.v2022.1.Hs.symbols.gmt")
 y <- GSEA(geneList, TERM2GENE = genesets)
 yd <- as.data.frame(y)
-### 看整体分布
 dotplot(y, showCategory = 5, split = ".sign", label_format = 60) + facet_grid(~.sign)
 gseaplot2(y, "HARALAMBIEVA_PBMC_M_M_R_II_AGE_11_22YO_VACCINATED_VS_UNVACCINATED_7YR_UP", color = "red", pvalue_table = T)
-
 ```
