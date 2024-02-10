@@ -222,5 +222,4 @@ location = grep(original_name, colnames(scobj_new@meta.data))
 location = grep(original_name, colnames(scobj_new@meta.data), fixed = T)
 colnames(scobj_new@meta.data)[location] = expected_name
 FeatureScatter(scobj_new, feature1 = "FCGR3A_Mono_AUCell", feature2 = "FCGR3A..Mono_UCell")
-
 ```
