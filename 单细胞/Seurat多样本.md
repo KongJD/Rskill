@@ -275,6 +275,113 @@ plot_density(scobj1, c("CD8A", "CCR7"), joint = TRUE) + plot_layout(nrow = 1)
 #### 4.注释结果可视化
 
 ```R
+DimPlot(scobj, reduction = "umap")
+DimPlot(scobj, reduction = "umap", label = T)
+DimPlot(scobj, reduction = "umap", label = T) + NoLegend()
+scCustomize::DimPlot_scCustom(scobj, figure_plot = TRUE)
+
+DimPlot(scobj, reduction = "umap", split.by = "group")
+DimPlot(scobj, reduction = "umap", split.by = "group", label = T) + NoLegend()
 
 
+data <- as.data.frame(table(scobj$group, scobj$celltype))
+colnames(data) <- c("group", "CellType", "Freq")
+library(dplyr)
+df <- data %>%
+  group_by(group) %>%
+  mutate(Total = sum(Freq)) %>%
+  ungroup() %>%
+  mutate(Percent = Freq / Total) %>%
+  as.data.frame()
+
+df$CellType <- factor(df$CellType, levels = unique(df$CellType))
+
+
+library(ggplot2)
+p <- ggplot(df, aes(x = group, y = Percent, fill = CellType)) +
+  geom_bar(position = "fill", stat = "identity", color = 'white', alpha = 1, width = 0.95) +
+  #scale_fill_manual(values = mycol) +
+  scale_y_continuous(expand = c(0, 0)) +
+  theme_classic()
+p
+
+### 换种形式
+### facet_wrap 可以设置行列参数
+ggplot(df, aes(x = group, y = Percent, fill = group)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~CellType, nrow = 2) +
+  theme_bw() +
+  NoLegend()
+
+ggplot(df, aes(x = CellType, y = Percent, fill = group)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~group, nrow = 2) +
+  theme_bw() +
+  NoLegend()
+
+### 筛选数据 和前面seurat的subset比较，理解泛型函数
+data <- subset(df, subset = !CellType %in% c("Mono/Mk Doublets", "Mk", "Eryth", "DC", "pDC"))
+ggplot(data, aes(x = group, y = Percent, fill = group)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~CellType, nrow = 3) +
+  theme_bw() +
+  NoLegend()
+
+
+### 可视化展示DotPlot 和 Clustered_DotPlot
+library(dplyr)
+top_markers <- all_markers %>%
+  group_by(cluster) %>%
+  arrange(desc(avg_log2FC)) %>%
+  slice(1:5) %>%
+  ungroup() %>%
+  pull(gene) %>%
+  unique()
+DotPlot(scobj1, features = top_markers)
+DotPlot(scobj1, features = top_markers) + RotatedAxis()
+DotPlot(scobj1, features = top_markers) +
+  coord_flip() +
+  RotatedAxis()
+DotPlot(scobj1, features = top_markers, dot.scale = 4) +
+  coord_flip() +
+  RotatedAxis() +
+  theme(axis.text.y = element_text(size = 8))
+
+scCustomize::Clustered_DotPlot(scobj1, features = top_markers)
+
+### 选择作图基因
+markers.to.plot <- c("CD3D", "CREM", "HSPH1", "SELL", "GIMAP5", "CACYBP", "GNLY", "NKG7", "CCL5",
+                     "CD8A", "MS4A1", "CD79A", "MIR155HG", "NME1", "FCGR3A", "VMO1", "CCL2", "S100A9", "HLA-DQA1",
+                     "GPR183", "PPBP", "GNG11", "HBA2", "HBB", "TSPAN13", "IL3RA", "IGJ", "PRSS57")
+### 绘图,主要时候cols参数，给了两个颜色，split.by区分多组
+DotPlot(scobj1, features = markers.to.plot,
+        cols = c("blue", "red"),
+        dot.scale = 6,
+        split.by = "group") +
+  RotatedAxis() +
+  theme(axis.text.y = element_text(size = 8)) +
+  theme(axis.text.x = element_text(size = 8))
+
+### marker 热图,需要scale data
+DoHeatmap(scobj1, features = top_markers)
+
+### Identity的大小修改，通过size参数
+DoHeatmap(scobj1, features = top_markers, size = 3)
+
+### 基因的大小修改theme(axis.text.y = element_text(size = 8))
+DoHeatmap(scobj1, features = top_markers, size = 3) +
+  theme(axis.text.y = element_text(size = 8))
+
+### subset和downsample 可以随机取每个群的细胞数
+DoHeatmap(subset(scobj1, downsample = 50), features = top_markers, size = 3) +
+  theme(axis.text.y = element_text(size = 8))
+
+
+library(scRNAtoolVis)
+AverageHeatmap(object = scobj1, markerGene = top_markers)
+## 修改基因的字号
+AverageHeatmap(object = scobj1, markerGene = top_markers, fontsize = 8)
+## 组间比较
+AverageHeatmap(object = subset(scobj1, group == "CTRL"), markerGene = top_markers, fontsize = 8) +
+  AverageHeatmap(object = subset(scobj, group == "STIM"), markerGene = top_markers, fontsize = 8)
 ```
