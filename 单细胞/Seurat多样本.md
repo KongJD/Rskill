@@ -443,13 +443,14 @@ interferon.response <- FindMarkers(scobj,
                                    logfc.threshold = 0)
 
 gene_df <- interferon.response
+
+### https://www.gsea-msigdb.org/gsea/index.jsp
 geneList <- gene_df$avg_log2FC
 names(geneList) = rownames(gene_df)
 geneList = sort(geneList, decreasing = TRUE)
 library(clusterProfiler)
 #################################################################
 ### 1.kegg 通路
-### https://www.gsea-msigdb.org/gsea/index.jsp
 genesets <- read.gmt("data/c2.cp.kegg.v2022.1.Hs.symbols.gmt")
 y <- GSEA(geneList, TERM2GENE = genesets)
 yd <- as.data.frame(y)
@@ -482,4 +483,5 @@ y <- GSEA(geneList, TERM2GENE = genesets)
 yd <- as.data.frame(y)
 dotplot(y, showCategory = 5, split = ".sign", label_format = 60) + facet_grid(~.sign)
 gseaplot2(y, "HARALAMBIEVA_PBMC_M_M_R_II_AGE_11_22YO_VACCINATED_VS_UNVACCINATED_7YR_UP", color = "red", pvalue_table = T)
+### 基因集文件 https://maayanlab.cloud/Enrichr/#libraries
 ```
