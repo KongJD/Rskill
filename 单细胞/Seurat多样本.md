@@ -385,3 +385,62 @@ AverageHeatmap(object = scobj1, markerGene = top_markers, fontsize = 8)
 AverageHeatmap(object = subset(scobj1, group == "CTRL"), markerGene = top_markers, fontsize = 8) +
   AverageHeatmap(object = subset(scobj, group == "STIM"), markerGene = top_markers, fontsize = 8)
 ```
+
+#### 5.差异分析、富集分析
+
+```R
+scobj <- JoinLayers(scobj)
+
+scobj$celltype.stim <- paste(scobj$celltype, scobj$group, sep = "_")
+
+Idents(scobj) <- "celltype.stim"
+table(scobj$celltype.stim)
+
+sce.markers <- FindAllMarkers(object = scobj,
+                              only.pos = TRUE,
+                              min.pct = 0.25,
+                              thresh.use = 0.25)
+
+library(dplyr)
+markers <- sce.markers %>%
+  filter(p_val_adj < 0.001)
+
+library(clusterProfiler)
+### 名称转换
+gid <- bitr(unique(markers$gene), 'SYMBOL', 'ENTREZID', OrgDb = 'org.Hs.eg.db')
+### 交叉合并
+colnames(gid)[1] <- "gene"
+markers <- merge(markers, gid, by = 'gene')
+
+library(tidyr)
+markers <- markers %>%
+  separate(cluster, into = c("celltype", "group"), sep = "_", remove = F) %>%
+  filter(!celltype %in% c("Eryth", "Mk", "Mono/Mk Doublets"))
+
+
+### 多组富集分析（组组比较）
+x = compareCluster(ENTREZID ~ celltype + group, data = markers, fun = 'enrichKEGG')
+
+### 绘图
+library(ggplot2)
+dotplot(x, label_format = 60, x = "group") +
+  facet_grid(~celltype) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+### 换图
+dotplot(x, label_format = 60, x = "celltype") +
+  facet_grid(~group) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+#### 6.基于差异分析的GSEA分析
+
+```R
+### 基于差异分析的GSEA分析
+### 同一群细胞中, 处理和对照的差异
+interferon.response <- FindMarkers(scobj,
+                                   ident.1 = "CD14 Mono_STIM",
+                                   ident.2 = "CD14 Mono_CTRL",
+                                   logfc.threshold = 0)
+
+
+```
