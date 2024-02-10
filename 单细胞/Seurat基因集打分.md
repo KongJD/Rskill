@@ -5,7 +5,7 @@
 基因集打分
 ```
 
-#### 1.
+#### 1.数据准备
 
 ```R
 ## 数据准备
@@ -42,3 +42,40 @@ scobj <- RenameIdents(scobj,
 scobj@meta.data$celltype = Idents(scobj)
 DimPlot(scobj, reduction = "umap", label = T, repel = T) + NoLegend()
 ```
+
+#### 2.Seuarat基因集打分
+
+```R
+## AddModuleScore 函数
+## 需要是一群基因
+## 以NK的marker举例
+library(tibble)
+nk_enriched <- FindMarkers(scobj, ident.1 = "NK") %>%
+  arrange(-avg_log2FC) %>%
+  rownames_to_column(var = "gene")
+nk_enriched_top <- nk_enriched$gene[1:50]
+## 保存在 scobj@meta_data里面，行名为NK_enriched1
+scobj <- AddModuleScore(scobj, features = list(nk_enriched_top),
+                        name = "NK_enriched")
+FeaturePlot(scobj, features = "NK_enriched1", label = TRUE, repel = TRUE)
+
+library(ggplot2)
+library(RColorBrewer)
+FeaturePlot(scobj, features = "NK_enriched1", label = TRUE, repel = TRUE) +
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdBu")))
+
+
+### 多个特征
+library(Seurat)
+library(clusterProfiler)
+genesets <- read.gmt("data/h.all.v2022.1.Hs.symbols.gmt")
+signatures <- split(genesets$gene, genesets$term)
+scobj <- AddModuleScore(scobj,
+                        features = signatures,
+                        name = "seurat",
+                        assay = "RNA")
+
+names(scobj@meta.data)[grep("seurat\\d", names(scobj@meta.data))] <- names(signatures)
+FeaturePlot(scobj, features = "HALLMARK_INTERFERON_ALPHA_RESPONSE", label = TRUE, repel = TRUE)
+```
+
