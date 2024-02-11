@@ -102,13 +102,20 @@ gseaplot2(y, geneSetID = 1:3)
 
 ### 自己添加文字加文字
 index <- "HALLMARK_MYC_TARGETS_V2"
-gseaplot2(y,index ,color = "green")
+gseaplot2(y, index, color = "green")
 
-anno <- yd[index , c("enrichmentScore","NES", "pvalue", "p.adjust")]
+anno <- yd[index, c("enrichmentScore", "NES", "pvalue", "p.adjust")]
 colnames(anno)[1] <- "ES"
-lab <- paste0(names(anno), "=",  round(anno, 3), collapse="\n")
+lab <- paste0(names(anno), "=", round(anno, 3), collapse = "\n")
 
-p <- gseaplot2(y,index,color = "green")
-p[[1]] <- p[[1]] + annotate("text",15000, -0.6, label = lab, hjust=0, vjust=0,size = 5)
+p <- gseaplot2(y, index, color = "green")
+p[[1]] <- p[[1]] + annotate("text", 15000, -0.6, label = lab, hjust = 0, vjust = 0, size = 5)
 p
+```
+
+#### 3.misgdb
+
+```R
+
+
 ```
