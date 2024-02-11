@@ -160,7 +160,36 @@ pathways <- gmtPathways("h.all.v7.1.entrez.gmt")
 #### 4.experdata
 
 ```R
+y <- as.numeric(exprSet[1,])
+rownames <- rownames(exprSet)
+cor_data_df <- data.frame(rownames)
+### 批量相关性分析
+for (i in 1:length(rownames)) {
+  test <- cor.test(as.numeric(exprSet[i,]), y, method = "spearman")
+  cor_data_df[i, 2] <- test$estimate
+  cor_data_df[i, 3] <- test$p.value
+}
+names(cor_data_df) <- c("symbol", "correlation", "pvalue")
 
+## geneList 
+geneList <- cor_data_df$correlation
+names(geneList) = cor_data_df$symbol
+geneList = sort(geneList, decreasing = TRUE)
+
+
+### 基因集
+library(msigdbr)
+dd <- msigdbr(species = "Homo sapiens")
+hallmarks <- dd %>%
+  filter(gs_cat == "H") %>%
+  select(gs_name, gene_symbol)
+
+### GSEA分析
+library(clusterProfiler)
+y <- GSEA(geneList, TERM2GENE = hallmarks)
+
+### 看整体分布
+dotplot(y, showCategory = 12, split = ".sign") + facet_grid(~.sign)
 ```
 
 
