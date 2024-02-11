@@ -192,4 +192,56 @@ y <- GSEA(geneList, TERM2GENE = hallmarks)
 dotplot(y, showCategory = 12, split = ".sign") + facet_grid(~.sign)
 ```
 
+#### 5.gsva+limma
+
+```R
+library(GSVA)
+kegggmt <- read.gmt("c2.cp.kegg.v7.1.symbols.gmt")
+colnames(kegggmt)
+kegg_list = split(kegggmt$gene, kegggmt$term)
+## 下面有个报错错误: useNames = NA is defunct. Instead, specify either useNames = TRUE or useNames = FALSE.
+kegg1 <- gsva(expr = as.matrix(exprSet), kegg_list, kcdf = "Gaussian", method = "gsva", parallel.sz = 1)
+
+keggSet <- getGmt("c2.cp.kegg.v7.1.symbols.gmt")
+kegg2 <- gsva(expr = as.matrix(exprSet), keggSet, kcdf = "Gaussian", method = "gsva", parallel.sz = 1)
+
+library(pheatmap)
+##用名称提取部分数据用作热图绘制
+group <- c(rep("con", 3), rep("treat", 3))
+annotation_col <- data.frame(group)
+rownames(annotation_col) <- colnames(kegg2)
+
+pheatmap(kegg2,
+         cluster_rows = TRUE,
+         cluster_cols = TRUE,
+         annotation_col = annotation_col,
+         annotation_legend = TRUE,
+         show_rownames = F,
+         scale = "row",
+         color = colorRampPalette(c("blue", "white", "red"))(100),
+         cellwidth = 80, cellheight = 2,
+         fontsize = 10)
+
+
+library(limma)
+exprSet <- kegg2
+### 差异分析
+
+group <- c(rep("con", 3), rep("treat", 3))
+## 分组变成向量，并且限定leves的顺序
+## levels里面，把对照组放在前面
+group <- factor(group, levels = c("con", "treat"), ordered = F)
+## 1.构建比较矩阵
+design <- model.matrix(~group)
+## 比较矩阵命名
+colnames(design) <- levels(group)
+
+##2.线性模型拟合
+fit <- lmFit(exprSet, design)
+##3.贝叶斯检验
+fit2 <- eBayes(fit)
+#4.输出差异分析结果,其中coef的数目不能操过design的列数
+# 此处的2代表的是第二列和第一列的比较
+allDiff = topTable(fit2, adjust = 'fdr', coef = 2, number = Inf) 
+```
 
