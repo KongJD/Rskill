@@ -116,6 +116,51 @@ p
 #### 3.misgdb
 
 ```R
+library(msigdbr)
+msigdbr_species()
+m_df = msigdbr(species = "Homo sapiens")
+library(dplyr)
+m_df %>%
+  distinct(gs_cat, gs_subcat) %>%
+  arrange(gs_cat, gs_subcat)
 
+### 人
+h_df = msigdbr(species = "Homo sapiens", category = "H")
+
+### 鼠
+m_df = msigdbr(species = "Mus musculus", category = "H")
+
+### 选择的方式
+m_df1 = msigdbr(species = "Mus musculus", category = "C2", subcategory = "CGP")
+dd <- msigdbr(species = "Mus musculus")
+colnames(dd)
+
+###选取鼠的C2，CGP，entrizID
+library(dplyr)
+m_df2 <- dd %>%
+  filter(species_name == "Mus musculus") %>%
+  filter(gs_cat == "C2", gs_subcat == "CGP") %>%
+  select(gs_name, entrez_gene)
+
+### 选人，hallmarks，两列
+dd <- msigdbr(species = "Homo sapiens")
+h_df2 <- dd %>%
+  filter(gs_cat == "H") %>%
+  select(gs_name, entrez_gene)
+
+### 比较
+h_df3 <- read.gmt("h.all.v7.1.entrez.gmt")
+m_list = split(h_df2$entrez_gene, h_df2$gs_name)
+
+### fgsea的输入
+pathways <- gmtPathways("h.all.v7.1.entrez.gmt")
+### https://cran.r-project.org/web/packages/msigdbr/vignettes/msigdbr-intro.html
+```
+
+#### 4.experdata
+
+```R
 
 ```
+
+
