@@ -8,6 +8,7 @@
 #### 1.fgsea
 
 ```R
+### https://bioconductor.org/packages/release/bioc/vignettes/fgsea/inst/doc/fgsea-tutorial.html
 rm(list = ls())
 
 library(fgsea)
@@ -48,5 +49,20 @@ mainPathways <- fgseaRes[pathway %in% collapsedPathways$mainPathways][
   order(-NES), pathway]
 plotGseaTable(examplePathways[mainPathways], exampleRanks, fgseaRes,
               gseaParam = 0.5)
+
+## 自带数据
+rnk.file <- system.file("extdata", "naive.vs.th1.rnk", package = "fgsea")
+ranks <- read.table(rnk.file, header = TRUE, colClasses = c("character", "numeric"))
+ranks <- setNames(ranks$t, ranks$ID)
+
+gmt.file <- system.file("extdata", "mouse.reactome.gmt", package = "fgsea")
+pathways <- gmtPathways(gmt.file)
+fgseaRes <- fgsea(pathways, ranks, minSize = 15, maxSize = 500, nperm = 10000)
+```
+
+#### 2.clusterprofiler
+
+```R
+
 
 ```
