@@ -1,8 +1,8 @@
-## GSVA分析
+## GSEA分析
 
 ```properties
 ## 背景：
 
 ```
 
-#### 1.gsva
+#### 1.gsea
