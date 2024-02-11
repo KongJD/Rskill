@@ -63,6 +63,19 @@ fgseaRes <- fgsea(pathways, ranks, minSize = 15, maxSize = 500, nperm = 10000)
 #### 2.clusterprofiler
 
 ```R
+rm(list = ls())
+library(clusterProfiler)
 
+# 差异分析得到的表达矩阵
+gene <- rownames(Diff_data)
+gene = bitr(gene, fromType = "SYMBOL", toType = "ENTREZID", OrgDb = "org.Hs.eg.db")
+gene <- dplyr::distinct(gene, SYMBOL, .keep_all = TRUE)
+gene_df <- data.frame(logFC = allDiff$logFC, SYMBOL = rownames(allDiff))
+gene_df <- merge(gene_df, gene, by = "SYMBOL")
+
+### genelist获取
+geneList <- gene_df$logFC
+names(geneList) = gene_df$ENTREZID
+geneList = sort(geneList, decreasing = TRUE)
 
 ```
