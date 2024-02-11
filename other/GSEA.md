@@ -1,4 +1,4 @@
-## GSEA基因富集分析
+## GSEA基因集富集分析
 
 ```properties
 ## 背景：
