@@ -200,6 +200,7 @@ kegggmt <- read.gmt("c2.cp.kegg.v7.1.symbols.gmt")
 colnames(kegggmt)
 kegg_list = split(kegggmt$gene, kegggmt$term)
 ## 下面有个报错错误: useNames = NA is defunct. Instead, specify either useNames = TRUE or useNames = FALSE.
+## 把包降级 remotes::install_version("matrixStats", version="1.1.0")
 kegg1 <- gsva(expr = as.matrix(exprSet), kegg_list, kcdf = "Gaussian", method = "gsva", parallel.sz = 1)
 
 keggSet <- getGmt("c2.cp.kegg.v7.1.symbols.gmt")
@@ -244,4 +245,19 @@ fit2 <- eBayes(fit)
 # 此处的2代表的是第二列和第一列的比较
 allDiff = topTable(fit2, adjust = 'fdr', coef = 2, number = Inf) 
 ```
+
+#### 6.ssgsva
+
+```R
+### 每个细胞对应表达的mark基因（类似通路对应基因）
+expr <- data.table::fread("exprMat.txt", data.table = F)
+rownames(expr) <- expr[, 1]
+expr <- expr[, -1]
+expr <- as.matrix(expr)
+
+### 3.使用ssGSEA量化免疫浸润
+library(GSVA)
+gsva_data <- gsva(expr, cellMarker, method = "ssgsea")
+```
+
 
