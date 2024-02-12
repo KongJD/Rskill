@@ -85,6 +85,10 @@ seu2 <- NormalizeData(seu2)
 FeatureScatter(seu, feature1 = "CD8A", feature2 = "CD8B") +
   FeatureScatter(seu2, feature1 = "CD8A", feature2 = "CD8B")
 
+### 在这里做metacell的好处就是在干扰素刺激下 STAT1和STAT2两个转录因子应该有很强的相关性，但原始数据没有，但是做了metacell就有了相关性
+## 上述的代码暂时没能理解为啥做了，两个转录因子有这么强的相关性，后续过来理解下
+FeatureScatter(seu, feature1 = "STAT1", feature2 = "STAT2") +
+  FeatureScatter(seu2, feature1 = "STAT1", feature2 = "STAT2")
 
 ## 准备pySCENIC的输入文件
 ## (1) TF list文件(optional)，可以使用预定义的TF list，例如pySCENIC官方提供的，或者animalTFDB提供的。
