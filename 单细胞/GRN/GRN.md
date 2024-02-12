@@ -127,8 +127,8 @@ gc()
 f_loom_grn = .. / output / 00 - 2.mc_mat_for_step1.loom
 
 ## outputs
-grn_output=../output/01-step1_adj.tsv
-ctx_output=../output/01-step2_reg.tsv
+grn_output=../output/step1_adj.tsv
+ctx_output=../output/step2_reg.tsv
 
 ## reference
 f_tfs=../cisTarget_db/hsa_hgnc_tfs.motifs-v10.txt
