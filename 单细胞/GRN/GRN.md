@@ -8,7 +8,7 @@ https://lishensuo.github.io/posts/bioinfo/010%E5%8D%95%E7%BB%86%E8%83%9E%E5%88%8
 外源刺激 -> TF(GRN) -> 转录组的变化 -> 通路/生物学过程的变化
 ```
 
-#### 1.pySCENIC
+#### 1.pySCENIC数据准备
 
 ```R
 ## 准备pySCENIC的输入文件:
@@ -118,4 +118,11 @@ loom$close()
 ## 释放loom对象，允许其它文件占用loom文件
 rm(loom)
 gc()
+```
+
+#### 2.pySCENIC流程
+
+```R
+
+
 ```
