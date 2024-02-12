@@ -200,5 +200,10 @@ for i in regulons:
         tf = "%s(%sg)" % (i.transcription_factor, len(i.genes))
         fo1.write("%s\t%s\t%s\n" % (tf, motif, genes))
         fo2.write("%s\t%s\t%s\n" % (tf, motif, genes.replace("\t", ",")))
+```
+
+#### 3.
+
+```R
 
 ```
