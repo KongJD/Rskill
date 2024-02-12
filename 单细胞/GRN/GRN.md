@@ -163,5 +163,6 @@ $f_db_500bp $f_db_10kb \
 --output$ctx_output\
 --num_workers10
 
-
+###### 这里推荐用 singularity ，后续学一下这个容器用法
 ```
+
