@@ -159,7 +159,7 @@ time pyscenic ctx \
 $grn_output \
 $f_db_500bp $f_db_10kb \
 --annotations_fname$f_motif_path\
---expression_mtx_fname $f_loom_grn \
+--expression_mtx_fname $f_loom_grn\
 --output$ctx_output\
 --num_workers10
 
