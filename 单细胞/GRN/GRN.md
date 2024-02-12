@@ -202,7 +202,7 @@ for i in regulons:
         fo2.write("%s\t%s\t%s\n" % (tf, motif, genes.replace("\t", ",")))
 ```
 
-#### 3.
+#### 3.pySCENIC的结果探索
 
 ```R
 
