@@ -204,6 +204,118 @@ for i in regulons:
 
 #### 3.pySCENIC的结果探索
 
-```R
+#### （1）刺激后影响最大的细胞类型是什么
 
+```R
+library(Seurat)
+library(tidyverse)
+library(patchwork)
+
+seu <- subset(seu, celltype %in% c("Mono/Mk Doublets", "Eryth"), invert = TRUE)
+DimPlot(seu, group.by = "celltype", reduction = "umap", label = T)
+celltype.levels <- c("CD14 Mono", "CD16 Mono", "DC", "pDC", "B cell", "B Activated",
+                     "NK", "CD8 T", "CD4 Memory T", "T activated", "CD4 Naive T", "Mk")
+seu$celltype <- factor(seu$celltype, levels = celltype.levels)
+
+## 导入regulon (gene list)
+regulons <- clusterProfiler::read.gmt("output/02-ifnb_pbmc.regulons.gmt")
+
+## data.frame -> list, list中的每个元素为一个gene set
+rg.names <- unique(regulons$term)
+regulon.list <- lapply(rg.names, function(rg) {
+  subset(regulons, term == rg)$gene
+})
+names(regulon.list) <- sub("[0-9]+g", "\\+", rg.names)
+summary(sapply(regulon.list, length))
+print(regulon.list[1])
+
+ComputeModuleScore <- function(x, ...) UseMethod('ComputeModuleScore')
+
+ComputeModuleScore.default <- function(x, gene.sets, min.size = 20, batch.size = 500, cores = 1, ...) {
+  if (!is.list(gene.sets)) {
+    stop("'gene.sets' should be a list or data.frame!")
+  }
+  gene.sets <- gene.sets[sapply(gene.sets, length) >= min.size]
+  n.cells <- ncol(x)
+  batches <- floor((1:n.cells - 1) / batch.size)
+  batch.levels <- unique(batches)
+
+  aucell <- function(i) {
+    dge.tmp <- x[, batches == i]
+    cr <- AUCell::AUCell_buildRankings(dge.tmp, nCores = 1, plotStats = F, verbose = F)
+    auc <- AUCell::AUCell_calcAUC(gene.sets, cr, nCores = 1, verbose = F)
+    AUCell::getAUC(auc)
+  }
+
+  auc_scores <- parallel::mclapply(batch.levels, aucell, mc.cores = cores)
+  do.call(cbind, auc_scores)
+}
+
+ComputeModuleScore.Seurat <- function(x, gene.sets, min.size = 20, batch.size = 500, cores = 1, assay = Seurat::DefaultAssay(x), ...) {
+  dge <- x[[assay]]@counts
+  ras_mat <- ComputeModuleScore.default(x = dge, gene.sets, min.size, batch.size, cores)
+  x[["AUCell"]] <- Seurat::CreateAssayObject(data = ras_mat)
+  return(x)
+}
+
+
+## 用AUCell计算RAS matrix
+## RAS = regulon activity score
+seu <- ComputeModuleScore(seu, gene.sets = regulon.list, min.size = 10, cores = 1)
+seu
+DefaultAssay(seu) <- "AUCell"
+
+p1 <- FeaturePlot(seu, features = "STAT2(+)", split.by = "group")
+p2 <- FeaturePlot(seu, features = "STAT2", split.by = "group")
+(p1 / p2) & scale_color_viridis_c()
+
+VlnPlot(seu, group.by = "celltype", features = "STAT2(+)", pt.size = 0,
+        split.by = "group", split.plot = TRUE, cols = c("blue", "red")) + ylab("TF activity")
+VlnPlot(seu, group.by = "celltype", features = "STAT2", pt.size = 0,
+        split.by = "group", split.plot = TRUE, cols = c("blue", "red"))
+
+
+## 用RAS matrix计算UMAP
+seu <- RunUMAP(object = seu,
+               features = rownames(seu),
+               metric = "correlation", # 注意这里用correlation效果最好
+               reduction.name = "umapRAS",
+               reduction.key = "umapRAS_")
+
+## 可视化：UMAP on harmony
+p1 <- DimPlot(seu, reduction = "umap", group.by = "celltype") +
+  ggsci::scale_color_d3("category20") +
+  NoLegend()
+p2 <- DimPlot(seu, reduction = "umap", group.by = "group") + NoLegend()
+
+## 可视化：UMAP on RAS
+p3 <- DimPlot(seu, reduction = "umapRAS", group.by = "celltype") + ggsci::scale_color_d3("category20")
+p4 <- DimPlot(seu, reduction = "umapRAS", group.by = "group")
+
+(p1 + p3) / (p2 + p4)
+
+## 推测：INFB对髓系细胞的影响更大
+
+## 换一种方式：PCA
+DefaultAssay(seu) <- "AUCell"
+seu <- ScaleData(seu)
+seu <- RunPCA(object = seu,
+              features = rownames(seu),
+              reduction.name = "pcaRAS",
+              reduction.key = "pcaRAS_")
+
+## 可视化：PCA on RAS
+p3 <- DimPlot(seu, reduction = "pcaRAS", group.by = "celltype") + ggsci::scale_color_d3("category20")
+p4 <- DimPlot(seu, reduction = "pcaRAS", group.by = "group")
+p3 + p4
+
+## PC1 encoding the regulons related to cell type
+## PC2 encoding the regulons affected by INFB treatment
+## The INFB induced transcriptome shift is orthogonal to the cell identity transcriptional programs.
+
+VlnPlot(seu, group.by = "celltype", features = "pcaRAS_1", pt.size = 0,
+        split.by = "group", split.plot = TRUE, cols = c("blue", "red"))
+
+VlnPlot(seu, group.by = "celltype", features = "pcaRAS_2", pt.size = 0,
+        split.by = "group", split.plot = TRUE, cols = c("blue", "red"))
 ```
