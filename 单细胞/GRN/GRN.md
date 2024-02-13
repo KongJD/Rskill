@@ -1026,6 +1026,8 @@ p8 <- DimPlot(seu, reduction = "umapRASrmct", group.by = "group")
 
 #### (3) 哪些TF驱动了哪些细胞类型的什么样的变化(下游的基因, related to某些生物学功能)
 
+#### 每种细胞的差异基因 到 差异的通路,在从通路到 转录因子
+
 ```R
 library(tidyverse)
 library(Seurat)
@@ -1117,7 +1119,7 @@ VlnPlot(seu, group.by = "celltype", features = c("IRF3(+)"), split.by = "group",
 ## 结论：IFNB刺激导致的CD14 monocyte的氧化磷酸化被抑制可能是ILF2介导的
 ```
 
-#### (4) 每种细胞的差异基因 到 差异的通路,在从通路到 转录因子
+#### (4) 
 
 ```R
 
