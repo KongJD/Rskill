@@ -294,7 +294,7 @@ p4 <- DimPlot(seu, reduction = "umapRAS", group.by = "group")
 
 (p1 + p3) / (p2 + p4)
 
-## 推测：INFB对髓系细胞的影响更大
+## 推测：INFB对髓系细胞的影响更大(cd14 和 cd16)
 
 ## 换一种方式：PCA
 DefaultAssay(seu) <- "AUCell"
