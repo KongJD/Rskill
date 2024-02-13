@@ -1119,7 +1119,7 @@ VlnPlot(seu, group.by = "celltype", features = c("IRF3(+)"), split.by = "group",
 ## 结论：IFNB刺激导致的CD14 monocyte的氧化磷酸化被抑制可能是ILF2介导的
 ```
 
-#### (4) 
+#### (4) 可视化
 
 ```R
 
