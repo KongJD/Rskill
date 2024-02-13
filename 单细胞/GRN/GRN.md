@@ -560,11 +560,371 @@ FeaturePlot(seu, reduction = "umap", split.by = "group", features = "THRB") &
 ##### B:将这些影响的转录因子 聚类 起来，让其之间有相关性，变成哪些转录因子网络受到影响变化
 
 ```R
+### network_plot
+`%notin%` <- Negate(`%in%`)
 
+RegNetVis <- function(regulators, edge.list, nodes.show = NULL, size.by = "num_target", topN = 10) {
+  regulators <- arrange(regulators, cluster, desc(num_target))
+  regulators$rank <- factor(regulators$TF, levels = regulators$TF)
+  regulators <- regulators %>%
+    group_by(cluster) %>%
+    mutate(rank_within_cluster = rank(-num_target, ties.method = "first")) %>%
+    ungroup()
 
+  to_label <- as.vector(regulators[regulators$rank_within_cluster <= topN,]$TF)
+  regulators.plot <- subset(regulators, !is.na(regulators$cluster))
+  edge.list.plot <- edge.list
+  if (!is.null(nodes.show)) {
+    regulators.plot <- subset(regulators.plot, TF %in% nodes.show)
+    edge.list.plot <- subset(edge.list.plot, TF %in% nodes.show & target %in% nodes.show)
+  }
+  ggplot() +
+    geom_segment(data = edge.list.plot,
+                 mapping = aes(x = x_start, y = y_start, xend = x_end, yend = y_end),
+                 alpha = 0.05) +
+    geom_point(data = regulators.plot,
+               mapping = aes(x = fr1, y = fr2, color = cluster, size = get(size.by))) +
+    guides(size = guide_legend(title = size.by)) +
+    ggrepel::geom_text_repel(data = regulators.plot %>% subset(TF %in% to_label),
+                             mapping = aes(x = fr1, y = fr2, color = cluster, label = TF),
+                             max.overlaps = Inf, show.legend = F) +
+    ggsci::scale_fill_d3() +
+    ggsci::scale_color_d3() +
+    scale_size_area(max_size = 4) +
+    coord_fixed() +
+    theme_void() +
+    theme(axis.line = element_blank(),
+          axis.ticks = element_blank(),
+          axis.text = element_blank())
+}
 
+RegModuleBar <- function(regulators, topN = 10) {
+  regulators <- arrange(regulators, cluster, desc(num_target))
+  regulators$rank <- factor(regulators$TF, levels = regulators$TF)
+
+  regulators.plot <- regulators %>%
+    group_by(cluster) %>%
+    slice_head(n = topN) %>%
+    ungroup()
+
+  regulators.plot <- subset(regulators.plot, !is.na(regulators.plot$cluster))
+
+  ggplot(regulators.plot) +
+    geom_bar(aes(x = rev(rank), y = num_target, fill = cluster), stat = "identity") +
+    geom_text(aes(x = rev(rank), y = 1, label = TF), hjust = 0) +
+    coord_flip() +
+    expand_limits(y = -100) +
+    labs(x = "") +
+    ggsci::scale_fill_d3() +
+    theme_classic(base_size = 15) +
+    theme(axis.ticks.y = element_blank(),
+          axis.text.y = element_blank(),
+          axis.line.y = element_blank())
+}
+
+RegulonGraphVis <- function(data, tf.show, targets.show, edge.alpha = .6, colors = c("grey", "orange"),
+                            edge.color = "lightblue", layout = "stress", prop = 0.05, n = NULL) {
+  edges <- data[, c("TF", "target", "importance")]
+  names(edges)[1:2] <- c("from", "to")
+
+  edges <- edges %>%
+    filter(from %in% tf.show) %>%
+    group_by(from) %>%
+    arrange(desc(importance))
+
+  if (!is.null(prop)) {
+    edges <- edges %>% slice_head(prop = prop)
+  } else {
+    edges <- edges %>% slice_head(n = n)
+  }
+
+  targets.show.df <- edges %>%
+    filter(to %in% targets.show)
+
+  nodes <- data.frame(name = unique(union(edges$from, edges$to)))
+  nodes$annot <- ifelse(nodes$name %in% unique(data$TF), "TF", "target")
+  g <- tbl_graph(nodes = nodes, edges = edges)
+
+  lw.breaks <- quantile(edges$importance, c(.01, .5, .99))
+  lw.ranges <- c(.3, 2)
+
+  ggraph(g, layout = layout) +
+    geom_edge_link(aes(width = importance), alpha = edge.alpha, color = edge.color) +
+    geom_node_point(aes(filter = name %in% targets.show.df$to), size = 5, color = "black") +
+    geom_node_point(aes(color = annot, size = annot)) +
+    geom_node_text(aes(filter = annot == "TF" & name %notin% targets.show, label = name), size = 4, color = "black", repel = T) +
+    geom_node_text(aes(filter = annot == "TF" & name %in% targets.show, label = name), size = 4, color = "red", repel = T) +
+    geom_node_text(aes(filter = name %in% targets.show.df$to & name %notin% tf.show, label = name), size = 3, color = "red", repel = T) +
+    scale_color_manual(values = colors) +
+    scale_size_manual(values = c(4, 10)) +
+    scale_edge_width_continuous(breaks = lw.breaks, labels = round(lw.breaks, 1), range = lw.ranges) +
+    guides(color = guide_legend(title = "", override.aes = list(size = 4, alpha = 1)),
+           size = guide_legend(title = "")) + # not work yet
+    theme_graph()
+}
+
+VDPlot <- function(vd.res, y, group.by, group.show) {
+  vd.res <- arrange(vd.res, desc(get(y)))
+  vd.res <- subset(vd.res, !is.na(cluster))
+  vd.plots <- vd.res %>%
+    mutate(pt.size = ifelse(get(group.by) == group.show, 2, .5),
+           type = ifelse(get(group.by) == group.show, group.show, "others"),
+           rank = 1:nrow(.))
+  ggplot(vd.plots, aes(rank, get(y))) +
+    geom_point(aes(color = type), size = vd.plots$pt.size) +
+    ggrepel::geom_text_repel(data = subset(vd.plots, get(group.by) == group.show),
+                             aes(rank, get(y), label = gene), color = "red") +
+    scale_color_manual(values = c("red", "grey")) +
+    guides(color = guide_legend(override.aes = list(size = 3))) +
+    labs(x = "Rank", y = sprintf("Fraction of variance across %s", y)) +
+    theme_classic(base_size = 16) +
+    theme(
+      legend.title = element_blank(),
+      legend.position = c(1, 1),
+      legend.justification = c(1, 1),
+      axis.text = element_text(color = "black")
+    )
+}
 ```
 
+```R
+library(tidyverse)
+#### Method 1: regulatory graph based clustering ####
+## regulatory graph: nodes - tfs, edges - regulatory links (only focus on TFs)
+## Hypothesis: the TFs regulating each other play roles together (The positive feedback).
+## 导入TF-target的调控信息
+tf2target <- clusterProfiler::read.gmt("output/02-ifnb_pbmc.regulons.gmt")
+tf2target$TF <- sub("\\([0-9]+g\\)", "", tf2target$term)
+colnames(tf2target)[1:2] <- c("regulon", "target")
+tf2target$id <- paste0(tf2target$TF, "-", tf2target$target)
+
+## 导入TF-target的可信度 (valued by feature importance)
+adj <- data.table::fread("output/step1_adj.tsv", sep = "\t", header = T)
+adj$id <- paste0(adj$TF, "-", adj$target)
+adj <- subset(adj, id %in% tf2target$id)
+
+## 合并调控信息和相关性信息
+data.use <- left_join(adj, tf2target, by = c("id", "TF", "target"))
+summary(data.use$importance)
+
+data.use <- subset(data.use, importance >= 1) # cut.off by importance
+
+## 统计每个TF有多少个target
+regulators <- data.use %>%
+  group_by(TF) %>%
+  summarise(num_target = n()) %>%
+  arrange(desc(num_target)) %>%
+  as.data.frame()
+rownames(regulators) <- regulators$TF
+head(regulators)
+
+## 建立TF之间的调控关系图
+hub.genes <- regulators$TF ## TFs
+edge.list <- data.use %>% subset(target %in% hub.genes & TF %in% hub.genes)
+edge.igraph <- igraph::make_undirected_graph(
+  edges = mapply(c, edge.list$TF, edge.list$target, SIMPLIFY = F) %>% Reduce(f = c)
+)
+
+## 降维：force directed layout
+set.seed(1024)
+fr.layout <- igraph::layout_with_fr(edge.igraph)
+nodes.in.grpah <- igraph::vertex_attr(edge.igraph)[[1]]
+regulators[nodes.in.grpah, "fr1"] = fr.layout[, 1]
+regulators[nodes.in.grpah, "fr2"] = fr.layout[, 2]
+head(regulators)
+
+edge.list$x_start = regulators[edge.list$TF, "fr1"]
+edge.list$y_start = regulators[edge.list$TF, "fr2"]
+edge.list$x_end = regulators[edge.list$target, "fr1"]
+edge.list$y_end = regulators[edge.list$target, "fr2"]
+
+## 图聚类
+## Louvain算法
+set.seed(1024)
+clusters <- igraph::cluster_louvain(edge.igraph, resolution = 1)
+regulators[clusters$names, "Louvain_cluster"] <- LETTERS[clusters$membership]
+
+## Leiden算法
+clusters <- leiden::leiden(edge.igraph, resolution_parameter = 1, seed = 1024)
+regulators[nodes.in.grpah, "Leiden_cluster"] <- LETTERS[clusters]
+
+regulators$cluster <- regulators$Louvain_cluster # 可视化必须的
+
+## Network plot
+## regulators$var.group <- vd.res[rownames(regulators), ]$group
+## RegNetVis(regulators = regulators, edge.list = edge.list, size.by = "var.group", topN = 5)
+RegNetVis(regulators = regulators, edge.list = edge.list, size.by = "num_target", topN = 5)
+RegModuleBar(regulators = regulators, topN = 5)
+
+## Combine the variance decomposition results
+source("R/vd_plot.R")
+vd.res <- readRDS("output/04-1.VD_res.rds")
+vd.res$TF <- sub("\\(\\+\\)", "", vd.res$gene)
+vd.res$cluster <- regulators[vd.res$TF,]$cluster
+rownames(vd.res) <- vd.res$TF
+regulators$var.group <- vd.res[rownames(regulators), ]$group
+RegNetVis(regulators = regulators, edge.list = edge.list, size.by = "var.group", topN = 5)
+plot.list <- lapply(LETTERS[1:8], function(clu) {
+  VDPlot(vd.res, y = "group", group.by = "cluster", group.show = clu)
+})
+cowplot::plot_grid(plotlist = plot.list, ncol = 4)
+
+## check results
+library(Seurat)
+seu <- qs::qread("output/seurat.aucell.qs")
+VlnPlot(seu, group.by = "celltype", features = "MXD1(+)", split.by = "group",
+        pt.size = 0, split.plot = TRUE, sort = F)
+
+## focus on cluster F
+nodes.show <- subset(regulators, cluster == "F")$TF
+RegNetVis(regulators = regulators, edge.list = edge.list, nodes.show = nodes.show, topN = 10)
+
+nodes.show <- subset(vd.res, group > 0.2)$TF # 响应IFNB的regulon
+RegNetVis(regulators = regulators, edge.list = edge.list, nodes.show = nodes.show, topN = 10)
+
+#### Method 2: TF activity similarity based clustering ####
+library(Seurat)
+CSI <- function(r1, r2) {
+  delta <- pccMat[r1,r2]
+  r.others <- setdiff(colnames(pccMat), c(r1,r2))
+  N <- sum(pccMat[r1, r.others] < delta) + sum(pccMat[r2, r.others] < delta)
+  M <- length(r.others) * 2
+  return(N/M)
+}
+
+seu <- qs::qread("output/seurat.aucell.qs")
+rasMat <- seu[["AUCell"]]@data
+rasMat <- t(rasMat)
+pccMat <- cor(rasMat) # 对列计算相关性
+
+csiMat <- pbapply::pblapply(rownames(pccMat), function(i) sapply(colnames(pccMat), function(j) CSI(i, j)))
+csiMat <- do.call(rbind, csiMat)
+rownames(csiMat) <- rownames(pccMat)
+
+## 找到一个合适的h for cut tree
+library(dendextend)
+library(ggsci)
+h = 5
+row_dend = as.dendrogram(hclust(dist(pccMat), method = "complete"))
+clusters <- dendextend::cutree(row_dend, h = h) # dendextend::cutree()
+row_dend = color_branches(row_dend, h = h, col = pal_d3("category20")(20))
+plot(row_dend)
+
+## 聚类可视化
+library(ComplexHeatmap)
+library(circlize)
+
+col_range = c(0.7, 1)
+col_fun <- colorRamp2(col_range, c("#FCF8DE", "#253177"))
+
+# for(i in nrow(csiMat)) {
+#   csiMat[i, i] <- 0
+# }
+
+ht <- Heatmap(
+  matrix = csiMat,
+  col = col_fun,
+  name = "ht1",
+  cluster_rows = TRUE,
+  cluster_columns = TRUE,
+  show_column_names = FALSE,
+  show_row_names = FALSE,
+  show_heatmap_legend = FALSE
+)
+
+lgd <- Legend(
+  col_fun = col_fun,
+  title = "",
+  at = col_range,
+  labels = c("low", "high"),
+  direction = "horizontal",
+  legend_width = unit(1, "in"),
+  border = FALSE
+)
+
+{
+  draw(ht, heatmap_legend_list = list(lgd), heatmap_legend_side = c("bottom"))
+  decorate_heatmap_body("ht1", {
+    tree = column_dend(ht)
+    ind = cutree(as.hclust(tree), h = h)[order.dendrogram(tree)]
+    first_index = function(l) which(l)[1]
+    last_index = function(l) { x = which(l); x[length(x)] }
+    clusters <- names(table(ind))
+    x1 = sapply(clusters, function(x) first_index(ind == x)) - 1
+    x2 = sapply(clusters, function(x) last_index(ind == x))
+    x1 = x1 / length(ind)
+    x2 = x2 / length(ind)
+    grid.rect(x = x1, width = (x2 - x1), y = 1 - x1, height = (x1 - x2),
+              hjust = 0, vjust = 0, default.units = "npc",
+              gp = gpar(fill = NA, col = "#FCB800", lwd = 3))
+    grid.text(label = paste0("M", clusters),
+              x = x2 - length(clusters) / length(ind), y = 1 - x1 - (x2 - x1) / 2,
+              default.units = "npc",
+              hjust = 1, vjust = 0.5,
+              gp = gpar(fontsize = 12, fontface = "bold"))
+  })
+  decorate_column_dend("ht1", {
+    tree = column_dend(ht)
+    ind = cutree(as.hclust(tree), h = h)[order.dendrogram(tree)]
+    first_index = function(l) which(l)[1]
+    last_index = function(l) { x = which(l); x[length(x)] }
+    clusters <- names(table(ind))
+    x1 = sapply(clusters, function(x) first_index(ind == x)) - 1
+    x2 = sapply(clusters, function(x) last_index(ind == x))
+    grid.rect(x = x1 / length(ind), width = (x2 - x1) / length(ind), just = "left",
+              default.units = "npc", gp = gpar(fill = pal_d3("category20")(20), alpha = .5, col = NA))
+  })
+}
+
+tree <- column_dend(ht)
+ind <- cutree(as.hclust(tree), h = h)[order.dendrogram(tree)]
+clusters <- names(table(ind))
+regulon.clusters <- data.frame(regulon = names(ind), cluster = paste0("M", ind))
+table(regulon.clusters$cluster)
+regulon.clusters
+
+# 绘制每个regulon-module的平均活性
+k = length(clusters)
+cell.info <- seu@meta.data
+moduleRasMat <- lapply(paste0("M", 1:k), function(x) {
+  regulon.use <- subset(regulon.clusters, cluster == x)$regulon
+  rowMeans(rasMat[, regulon.use, drop = FALSE])
+})
+names(moduleRasMat) <- paste0("M", 1:k)
+moduleRasMat <- do.call(cbind, moduleRasMat)
+cell.info <- cbind(cell.info, moduleRasMat[rownames(cell.info),])
+cell.info <- cbind(cell.info, FetchData(seu, vars = paste0("umap_", 1:2)))
+
+p.list <- lapply(paste0("M", 1:k), function(module) {
+  data.use <- cell.info
+  expression.color <- c("darkblue", "lightblue", "green", "yellow", "red")
+  max.val <- quantile(data.use[, module], 0.99)
+  low.val <- quantile(data.use[, module], 0.1)
+  data.use[, module] <- ifelse(data.use[, module] > max.val, max.val, data.use[, module])
+  ggplot(data.use, aes(umap_1, umap_2, color = get(module))) +
+    geom_point(size = 0.05) +
+    theme_bw(base_size = 15) +
+    ggtitle(module) +
+    facet_wrap(~group) +
+    scale_color_gradientn(name = NULL, colors = expression.color) +
+    theme(legend.position = "right",
+          legend.title = element_blank(),
+          plot.title = element_text(hjust = .5, face = "bold", size = 20),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          axis.line = element_line(color = "black")
+    )
+})
+cowplot::plot_grid(plotlist = p.list, ncol = 3)
+
+## VD plot
+vd.res[regulon.clusters$regulon, "cluster"] <- regulon.clusters$cluster
+plot.list <- lapply(paste0("M", 1:11), function(clu) {
+  VDPlot(vd.res, y = "group", group.by = "cluster", group.show = clu)
+})
+cowplot::plot_grid(plotlist = plot.list, ncol = 4)
+
+```
 
 
 
