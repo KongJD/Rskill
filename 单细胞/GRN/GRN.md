@@ -202,7 +202,7 @@ for i in regulons:
         fo2.write("%s\t%s\t%s\n" % (tf, motif, genes.replace("\t", ",")))
 ```
 
-#### 3.pySCENIC的结果探索
+#### 3.pySCENIC的结果探索:用各细胞的转录因子分析
 
 #### （1）刺激后影响最大的细胞类型是什么
 
