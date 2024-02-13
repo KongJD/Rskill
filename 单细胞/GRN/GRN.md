@@ -557,9 +557,10 @@ FeaturePlot(seu, reduction = "umap", split.by = "group", features = "THRB") &
   scale_color_viridis_c()
 ```
 
-##### B:
+##### B:将这些影响的转录因子 聚类 起来，让其之间有相关性，变成哪些转录因子网络受到影响变化
 
 ```R
+
 
 
 ```
