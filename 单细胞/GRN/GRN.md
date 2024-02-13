@@ -1049,7 +1049,7 @@ interferon.response <- FindMarkers(seu,
 ### GSEA 分析
 gene_df <- interferon.response
 geneList <- gene_df$avg_log2FC
-names(geneList) =  rownames(gene_df)
+names(geneList) = rownames(gene_df)
 geneList = sort(geneList, decreasing = TRUE)
 
 
@@ -1058,13 +1058,13 @@ hallmarks <- read.gmt("resource/h.all.v2022.1.Hs.symbols.gmt")
 ### 主程序GSEA
 y <- GSEA(geneList, TERM2GENE = hallmarks)
 yd <- as.data.frame(y)
-dotplot(y,showCategory=30,split=".sign") + facet_grid(~.sign)
+dotplot(y, showCategory = 30, split = ".sign") + facet_grid(~.sign)
 
 ## activated
-gseaplot2(y, "HALLMARK_INTERFERON_GAMMA_RESPONSE",color = "red", pvalue_table = T)
+gseaplot2(y, "HALLMARK_INTERFERON_GAMMA_RESPONSE", color = "red", pvalue_table = T)
 
 ## repressed
-gseaplot2(y, "HALLMARK_OXIDATIVE_PHOSPHORYLATION",color = "red", pvalue_table = T)
+gseaplot2(y, "HALLMARK_OXIDATIVE_PHOSPHORYLATION", color = "red", pvalue_table = T)
 
 #### Q2: 这些变化的通路是由哪些转录因子介导的? ####
 regulon.list <- readRDS("output/ifnb_pbmc.regulons.rds")
@@ -1117,4 +1117,10 @@ VlnPlot(seu, group.by = "celltype", features = c("IRF3(+)"), split.by = "group",
 ## 结论：IFNB刺激导致的CD14 monocyte的氧化磷酸化被抑制可能是ILF2介导的
 ```
 
+#### (4) 每种细胞的差异基因 到 差异的通路,在从通路到 转录因子
+
+```R
+
+
+```
 
