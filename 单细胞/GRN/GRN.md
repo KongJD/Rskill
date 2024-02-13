@@ -322,9 +322,237 @@ VlnPlot(seu, group.by = "celltype", features = "pcaRAS_2", pt.size = 0,
         split.by = "group", split.plot = TRUE, cols = c("blue", "red"))
 ```
 
-#### （2）哪些转录因子（TF）驱动了外源刺激后样本的的转录组变化?
+#### （2）哪些转录因子（TF）响应了外源刺激后导致样本的的转录组变化?
 
 ```R
+library(Seurat)
+library(tidyverse)
+library(patchwork)
+
+#### Method 1: feature loadings of PCA ####
+p1 <- DimPlot(seu, reduction = "pcaRAS", group.by = "celltype") + ggsci::scale_color_d3("category20")
+p2 <- DimPlot(seu, reduction = "pcaRAS", group.by = "group")
+p1 + p2
+
+VlnPlot(seu, group.by = "celltype", features = "pcaRAS_2", split.by = "group",
+        pt.size = 0, split.plot = TRUE, sort = F, cols = c("blue", "red"))
+
+## PC2-high-loading regulons
+## gene expression matrix (cells x genes) = cell embeddings (cells x nPCs) %*% feature loadings (nPCs x genes)
+## Here, only the high variable genes were involved.
+## If you want to fetch all genes loadings, you should perform ProjectDim first
+# seu <- ProjectDim(seu, reduction = "pcaRAS", do.center = T)
+# We didn't need do this because we use all regulons to perform PCA.
+Loadings(seu, reduction = "pcaRAS")
+VizDimLoadings(seu, reduction = "pcaRAS", dims = 2, balanced = T, projected = F)
+VlnPlot(seu, group.by = "celltype", features = "FOS(+)", split.by = "group",
+        pt.size = 0, split.plot = TRUE, sort = F, cols = c("blue", "red")) + ylab("TF activity")
+
+#### Method 2: Variance Decomposition ####
+VarDecompose <- function(data, meta.data, vd.vars, genes = "all", cores = -1) {
+  ## check params
+  if (missing(data) ||
+    missing(meta.data) ||
+    missing(vd.vars)) {
+    stop("Must provide 'data', 'meta.data', and 'vd.vars'.")
+  }
+  if (is.null(colnames(meta.data)) || is.null(rownames(meta.data))) {
+    stop("The row and column names of 'meta.data' should be provided.")
+  }
+  if (is.null(colnames(data)) || is.null(rownames(data))) {
+    stop("The row and column names of 'data' should be provided.")
+  }
+  if (!all(rownames(data) == rownames(meta.data))) {
+    stop("The row names of 'data' and 'meta.data' should be matched.")
+  }
+  if (!all(vd.vars %in% colnames(meta.data))) {
+    vd.vars.404 <- setdiff(vd.vars, colnames(meta.data))
+    stop(paste("vd.vars:", vd.vars.404, "is(are) not found in 'meta.data'"))
+  }
+  if (length(genes) == 1) {
+    if (genes == "all") {
+      genes <- colnames(data)
+    } else {
+      stop("'genes' should be 'all' or a vector.")
+    }
+  } else {
+    genes.404 <- setdiff(genes, colnames(data))
+    if (length(genes.404) > 0) {
+      warning(paste(length(genes.404), "gene(s) are not found in 'data'."))
+      genes <- setdiff(genes, genes.404)
+    }
+  }
+  cores <- ifelse(cores > 0, cores, parallel::detectCores())
+  ## prepare data for VD
+  vd.vars.str <- sapply(vd.vars, function(xx) sprintf("(1|%s)", xx))
+  modelFormulaStr <- paste("expression ~", paste(vd.vars.str, collapse = "+"))
+  data.use <- cbind(data[, genes], meta.data)
+  ## exe VD
+  vd.res <- do.call(rbind, parallel::mclapply(genes, function(genename) {
+    data.model <- data.use[, c(vd.vars, genename)]
+    colnames(data.model) <- c(vd.vars, "expression")
+    tryCatch({
+      model <- suppressWarnings(lme4::lmer(stats::as.formula(modelFormulaStr), data = data.model, REML = TRUE, verbose = FALSE))
+      results <- as.data.frame(lme4::VarCorr(model))
+      rownames(results) <- results$grp
+      results <- results[c(vd.vars, "Residual"),]
+      frac.var <- results$vcov / sum(results$vcov)
+
+      res.tmp <- c("OK", frac.var)
+    },
+      error = function(e) {
+        print(e)
+        res.tmp <- c("FAIL", rep(-1, length(vd.vars) + 1))
+      })
+    names(res.tmp) <- c("status", vd.vars, "residual")
+    as.data.frame(as.list(res.tmp)) # return
+  }, mc.cores = cores)
+  )
+  rownames(vd.res) <- genes
+  vd.res %<>% as.data.frame()
+  vd.res <- vd.res %>% dplyr::mutate(gene = rownames(vd.res), .before = 1)
+  # vd.res <- vd.res %>% as.data.frame() %>% dplyr::mutate(gene = rownames(.), .before=1)
+  for (i in 3:ncol(vd.res)) {
+    vd.res[[i]] %<>% as.numeric()
+  }
+  return(vd.res)
+}
+
+DefaultAssay(seu) <- "AUCell"
+vd.vars <- c("celltype", "group")
+meta.data <- seu@meta.data[, vd.vars]
+ras.data <- FetchData(seu, vars = rownames(seu))
+vd.res <- VarDecompose(data = ras.data, meta.data = meta.data, vd.vars = vd.vars, cores = 5)
+
+
+## PCA和VD结果的一致性
+vd.res$PC1.loadings <- Loadings(seu, reduction = "pcaRAS")[vd.res$gene, 1]
+vd.res$PC2.loadings <- Loadings(seu, reduction = "pcaRAS")[vd.res$gene, 2]
+
+to.label <- subset(vd.res, celltype > 0.25 & group > 0.15)
+
+ggplot(vd.res, aes(celltype, group, color = abs(PC1.loadings))) +
+  geom_point(size = 2) +
+  geom_hline(yintercept = 0.15, color = "blue", linetype = "dashed") +
+  geom_vline(xintercept = 0.25, color = "blue", linetype = "dashed") +
+  ggrepel::geom_text_repel(inherit.aes = F, data = to.label, aes(celltype, group, label = gene)) +
+  xlab("Fraction of variance by cell type") +
+  ylab("Fraction of variance by group") +
+  scale_color_viridis_c() +
+  theme_bw(base_size = 15)
+
+ggplot(vd.res, aes(celltype, group, color = abs(PC2.loadings))) +
+  geom_point(size = 2) +
+  xlab("Fraction of variance by cell type") +
+  ylab("Fraction of variance by group") +
+  scale_color_viridis_c() +
+  theme_bw(base_size = 15)
+
+ggplot(vd.res, aes(group)) +
+  geom_density()
+
+to.label <- subset(vd.res, group > 0.4)
+ggplot(vd.res, aes(PC2.loadings, group)) +
+  geom_point(size = 2) +
+  ggrepel::geom_text_repel(inherit.aes = F, data = to.label, aes(PC2.loadings, group, label = gene)) +
+  ylab("Fraction of variance by group") +
+  theme_bw(base_size = 15)
+
+VlnPlot(seu, group.by = "celltype", features = "HESX1(+)", split.by = "group",
+        pt.size = 0, split.plot = TRUE, sort = F, cols = c("blue", "red")) + ylab("TF activity")
+FeaturePlot(seu, reduction = "umap", features = "HESX1(+)", split.by = "group")
+VlnPlot(seu, group.by = "celltype", features = "ETV6(+)", split.by = "group",
+        pt.size = 0, split.plot = TRUE, sort = F, cols = c("blue", "red")) + ylab("TF activity")
+FeaturePlot(seu, reduction = "umap", features = "ETV6(+)", split.by = "group")
+VlnPlot(seu, group.by = "celltype", features = "IRF7(+)", split.by = "group",
+        pt.size = 0, split.plot = TRUE, sort = F, cols = c("blue", "red")) + ylab("TF activity")
+FeaturePlot(seu, reduction = "umap", features = "IRF7(+)", split.by = "group")
+
+
+#### Method 3: DE test ####
+DERegulon <- function(seu, celltype, group, test.use = "wilcox") {
+  seu$new.group <- paste(seu[[celltype, drop = T]], seu[[group, drop = T]], sep = "_")
+  Idents(seu) <- factor(seu$new.group)
+
+  celltypes <- levels(seu[[celltype, drop = T]])
+  groups <- levels(seu[[group, drop = T]])
+  seu2 <- subset(seu, group == groups[1])
+  Idents(seu2) <- seu2[[celltype, drop = T]]
+  baseline.levels <- AverageExpression(seu2, assays = "AUCell")$AUCell
+
+  de.list <- lapply(celltypes, function(ct) {
+    message(glue::glue("processing {ct} ..."))
+    ct1 <- paste(ct, groups[1], sep = "_")
+    ct2 <- paste(ct, groups[2], sep = "_")
+    de <- FindMarkers(seu, ident.1 = ct1, ident.2 = ct2, test.use = "wilcox", fc.name = "avg_diff", logfc.threshold = 0)
+    de$change <- ifelse(de$avg_diff > 0,
+                        paste("up in", groups[1]),
+                        paste("up in", groups[2]))
+    de$avg_diff <- -de$avg_diff
+    de$diff_rate <- de$avg_diff / baseline.levels[rownames(de), ct]
+    de$group <- ct
+    return(de)
+  })
+  names(de.list) <- celltypes
+  de.list
+}
+
+#' regulon activity ~ (0,1)
+format_change.df <- . %>%
+  mutate(change = case_when(p_val_adj < 1e-6 & avg_diff > 0.3 ~ '+++',
+                            p_val_adj < 1e-6 &
+                              avg_diff > 0.1 &
+                              avg_diff <= 0.3 ~ '++',
+                            p_val_adj < 1e-6 &
+                              avg_diff > 0.05 &
+                              avg_diff <= 0.1 ~ '+',
+                            p_val_adj < 1e-6 & avg_diff < -0.3 ~ '---',
+                            p_val_adj < 1e-6 &
+                              avg_diff < -0.1 &
+                              avg_diff >= -0.3 ~ '--',
+                            p_val_adj < 1e-6 &
+                              avg_diff < -0.05 &
+                              avg_diff >= -0.1 ~ '-',
+                            TRUE ~ "")) %>%
+  mutate(gene = rownames(.)) %>%
+  dplyr::select(gene, change, group)
+
+#'
+format_change <- function(mylist, celltype.levels) {
+  f.change <- lapply(mylist, format_change.df) %>%
+    Reduce(rbind, .) %>%
+    pivot_wider(names_from = "group", values_from = "change")
+  f.change <- f.change %>% dplyr::select(c("gene", all_of(celltype.levels)))
+  f.change[is.na(f.change)] <- ""
+  f.change
+}
+
+DefaultAssay(seu) <- "AUCell"
+# should be factors
+# change = STIM / CTRL
+seu$group <- factor(seu$group, levels = c("CTRL", "STIM"))
+de.list <- DERegulon(seu, celltype = "celltype", group = "group", test.use = "wilcox")
+
+# avg_diff = STIM - CTRL
+View(de.list[[1]])
+summary(de.list[[1]]$avg_diff)
+
+ggplot(de.list[[1]], aes(diff_rate, -log10(p_val_adj))) +
+  geom_point()
+
+de.regulons <- format_change(mylist = de.list, celltype.levels = levels(seu$celltype))
+
+data.use <- full_join(vd.res, de.regulons, by = "gene")
+
+## check results
+VlnPlot(seu, group.by = "celltype", features = "THRB(+)", split.by = "group",
+        pt.size = 0, split.plot = TRUE, sort = F)
+
+FeaturePlot(seu, reduction = "umap", split.by = "group", features = "THRB(+)") &
+  scale_color_viridis_c()
+
+FeaturePlot(seu, reduction = "umap", split.by = "group", features = "THRB") &
+  scale_color_viridis_c()
 
 ```
 
