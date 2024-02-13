@@ -1027,8 +1027,94 @@ p8 <- DimPlot(seu, reduction = "umapRASrmct", group.by = "group")
 #### (3) 哪些TF驱动了哪些细胞类型的什么样的变化(下游的基因, related to某些生物学功能)
 
 ```R
+library(tidyverse)
+library(Seurat)
+library(clusterProfiler)
+library(enrichplot)
+
+#### Q1: CD14 Monocyte在IFNB刺激后哪些通路发生了变化？ ####
+seu <- qs::qread("output/ifnb_pbmc.seurat.aucell.qs")
+DefaultAssay(seu) <- "RNA"
+
+seu$celltype.stim <- paste(seu$celltype, seu$group, sep = "_")
+Idents(seu) <- "celltype.stim"
+
+### 基于差异分析的GSEA分析策略
+## 注意，fold change = ident.1 / ident.2
+interferon.response <- FindMarkers(seu,
+                                   ident.1 = "CD14 Mono_STIM",
+                                   ident.2 = "CD14 Mono_CTRL",
+                                   logfc.threshold = 0)
+
+### GSEA 分析
+gene_df <- interferon.response
+geneList <- gene_df$avg_log2FC
+names(geneList) =  rownames(gene_df)
+geneList = sort(geneList, decreasing = TRUE)
 
 
+### hallmarks gene set
+hallmarks <- read.gmt("resource/h.all.v2022.1.Hs.symbols.gmt")
+### 主程序GSEA
+y <- GSEA(geneList, TERM2GENE = hallmarks)
+yd <- as.data.frame(y)
+dotplot(y,showCategory=30,split=".sign") + facet_grid(~.sign)
+
+## activated
+gseaplot2(y, "HALLMARK_INTERFERON_GAMMA_RESPONSE",color = "red", pvalue_table = T)
+
+## repressed
+gseaplot2(y, "HALLMARK_OXIDATIVE_PHOSPHORYLATION",color = "red", pvalue_table = T)
+
+#### Q2: 这些变化的通路是由哪些转录因子介导的? ####
+regulon.list <- readRDS("output/ifnb_pbmc.regulons.rds")
+sapply(regulon.list, length) %>% summary()
+## regulon的基因集大小范围: 10~4068
+
+regulons <- read.gmt("output/ifnb_pbmc.regulons.gmt")
+head(regulons)
+
+## query 1: HALLMARK_INTERFERON_GAMMA_RESPONSE (activated)
+genes <- subset(hallmarks, term == "HALLMARK_INTERFERON_GAMMA_RESPONSE")$gene
+
+## 注意minGSSize和maxGSSize和regulon基因集大小的范围对应
+e.regulon <- enricher(gene = genes, TERM2GENE = regulons, minGSSize = 10, maxGSSize = 5000)
+dotplot(e.regulon)
+
+## 结合regulon活性进一步筛选：
+DefaultAssay(seu) <- "AUCell"
+VlnPlot(seu, group.by = "celltype", features = c("IRF7(+)"), split.by = "group",
+        split.plot = TRUE, pt.size = 0, cols = c("blue", "red")) + ylab("TF activity")
+VlnPlot(seu, group.by = "celltype", features = c("STAT1(+)"), split.by = "group",
+        split.plot = TRUE, pt.size = 0, cols = c("blue", "red")) + ylab("TF activity")
+VlnPlot(seu, group.by = "celltype", features = c("KLF6(+)"), split.by = "group",
+        split.plot = TRUE, pt.size = 0, cols = c("blue", "red")) + ylab("TF activity")
+
+## 这里是一个阳性的例子，我们已经明确知道IRF7, STAT1, KLF6是干扰素应答的转录因子
+##
+
+## query 2: HALLMARK_OXIDATIVE_PHOSPHORYLATION (repressed)
+genes <- subset(hallmarks, term == "HALLMARK_OXIDATIVE_PHOSPHORYLATION")$gene
+
+e.regulon <- enricher(gene = genes, TERM2GENE = regulons, minGSSize = 10, maxGSSize = 5000)
+dotplot(e.regulon)
+
+## 结合regulon活性进一步筛选：
+DefaultAssay(seu) <- "AUCell"
+VlnPlot(seu, group.by = "celltype", features = c("SPI1(+)"), split.by = "group",
+        split.plot = TRUE, pt.size = 0, cols = c("blue", "red")) + ylab("TF activity")
+VlnPlot(seu, group.by = "celltype", features = c("ILF2(+)"), split.by = "group",
+        split.plot = TRUE, pt.size = 0, cols = c("blue", "red")) + ylab("TF activity")
+VlnPlot(seu, group.by = "celltype", features = c("IRF3(+)"), split.by = "group",
+        split.plot = TRUE, pt.size = 0, cols = c("blue", "red")) + ylab("TF activity")
+
+
+## 对数据的解释如下：
+## IFNB刺激后，ILF2的活性下降(数据支持)，氧化磷酸化被抑制(数据支持)
+## 氧化磷酸化通路的基因富集了ILF2调控的靶基因(相关性证据)
+## ILF2促进氧化磷酸化(文献支持) (扰动的证据，因果关系)
+## PMID: 31908894 Figure 2 H446/H82细胞系(小细胞肺癌细胞系)
+## 结论：IFNB刺激导致的CD14 monocyte的氧化磷酸化被抑制可能是ILF2介导的
 ```
 
 
