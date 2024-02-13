@@ -321,3 +321,17 @@ VlnPlot(seu, group.by = "celltype", features = "pcaRAS_1", pt.size = 0,
 VlnPlot(seu, group.by = "celltype", features = "pcaRAS_2", pt.size = 0,
         split.by = "group", split.plot = TRUE, cols = c("blue", "red"))
 ```
+
+#### （2）哪些转录因子（TF）驱动了外源刺激后样本的的转录组变化?
+
+```R
+
+```
+
+
+
+
+
+
+
+
