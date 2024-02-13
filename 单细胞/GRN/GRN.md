@@ -928,7 +928,7 @@ cowplot::plot_grid(plotlist = plot.list, ncol = 4)
 ```R
 ### moudle F 响应了 IFNB
 ### 去除moudle F的 reguton
-### 计算
+### 后面作图发现 去掉相关模块后，前面grn找到的组间差异消失了，又向去除批次效应后融合在一起
 
 library(Seurat)
 
