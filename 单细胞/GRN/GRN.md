@@ -751,8 +751,6 @@ regulators[nodes.in.grpah, "Leiden_cluster"] <- LETTERS[clusters]
 regulators$cluster <- regulators$Louvain_cluster # 可视化必须的
 
 ## Network plot
-## regulators$var.group <- vd.res[rownames(regulators), ]$group
-## RegNetVis(regulators = regulators, edge.list = edge.list, size.by = "var.group", topN = 5)
 RegNetVis(regulators = regulators, edge.list = edge.list, size.by = "num_target", topN = 5)
 RegModuleBar(regulators = regulators, topN = 5)
 
