@@ -1122,7 +1122,46 @@ VlnPlot(seu, group.by = "celltype", features = c("IRF3(+)"), split.by = "group",
 #### (4) 可视化
 
 ```R
+library(Seurat)
+library(tidyverse)
+library(ggraph)
+library(tidygraph)
 
 
+LoadpySCENICOutput <- function(regulon.gmt, adj.mat.file) {
+  message(glue::glue("Loading {regulon.gmt} ..."))
+  tf2target <- clusterProfiler::read.gmt(regulon.gmt)
+  tf2target$TF <- sub("\\([0-9]+g\\)", "", tf2target$term)
+  colnames(tf2target)[1:2] <- c("regulon", "target")
+  tf2target$id <- paste0(tf2target$TF, "-", tf2target$target)
+  head(tf2target)
+  message(glue::glue("Loading {adj.mat.file} ..."))
+  adj <- data.table::fread(adj.mat.file, sep = "\t", header = T)
+  adj$id <- paste0(adj$TF, "-", adj$target)
+  adj <- subset(adj, id %in% tf2target$id)
+  data <- left_join(adj, tf2target, by = c("id", "TF", "target"))
+  return(data)
+}
+
+data <- LoadpySCENICOutput(regulon.gmt = "output/02-ifnb_pbmc.regulons.gmt",
+                           adj.mat.file = "output/01-step1_adj.tsv")
+summary(data$importance)
+data <- subset(data, importance > 1)
+
+### 展示调控IFN-gamma通路的转录调控网络
+hallmarks <- clusterProfiler::read.gmt("resource/h.all.v2022.1.Hs.symbols.gmt")
+genes <- subset(hallmarks, term == "HALLMARK_INTERFERON_GAMMA_RESPONSE")$gene
+
+RegulonGraphVis(data, tf.show = c("STAT2", "STAT1", "IRF7", "IRF2", "IRF8", "ETV7", "ELF1"),
+                targets.show = genes)
+
+RegulonGraphVis(data, tf.show = c("STAT2", "STAT1", "IRF7", "IRF2", "IRF8", "ETV7", "ELF1"),
+                targets.show = genes, layout = "circle")
+
+RegulonGraphVis(data, tf.show = c("STAT2", "STAT1", "IRF7", "IRF2", "IRF8", "ETV7", "ELF1"),
+                targets.show = genes, prop = 0.01)
+
+RegulonGraphVis(data, tf.show = c("STAT2", "STAT1", "IRF7", "IRF2", "IRF8", "ETV7", "ELF1"),
+                targets.show = genes, prop = NULL, n = 20)
 ```
 
