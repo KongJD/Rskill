@@ -324,7 +324,7 @@ VlnPlot(seu, group.by = "celltype", features = "pcaRAS_2", pt.size = 0,
 
 #### （2）哪些转录因子（TF）响应了外源刺激后导致样本的的转录组变化?
 
-#### A:鉴定差异的调控的转录因子，其在组间和在哪种细胞类型中变化最大
+##### A:鉴定差异的调控的转录因子，其在组间和在哪种细胞类型中变化最大
 
 ```R
 library(Seurat)
@@ -557,6 +557,12 @@ FeaturePlot(seu, reduction = "umap", split.by = "group", features = "THRB") &
   scale_color_viridis_c()
 ```
 
+##### B:
+
+```R
+
+
+```
 
 
 
