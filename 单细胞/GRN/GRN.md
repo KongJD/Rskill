@@ -758,7 +758,7 @@ RegModuleBar(regulators = regulators, topN = 5)
 
 ## Combine the variance decomposition results
 source("R/vd_plot.R")
-vd.res <- readRDS("output/04-1.VD_res.rds")
+vd.res <- readRDS("output/VD_res.rds")
 vd.res$TF <- sub("\\(\\+\\)", "", vd.res$gene)
 vd.res$cluster <- regulators[vd.res$TF,]$cluster
 rownames(vd.res) <- vd.res$TF
@@ -792,7 +792,6 @@ CSI <- function(r1, r2) {
   return(N/M)
 }
 
-seu <- qs::qread("output/seurat.aucell.qs")
 rasMat <- seu[["AUCell"]]@data
 rasMat <- t(rasMat)
 pccMat <- cor(rasMat) # 对列计算相关性
@@ -923,7 +922,6 @@ plot.list <- lapply(paste0("M", 1:11), function(clu) {
   VDPlot(vd.res, y = "group", group.by = "cluster", group.show = clu)
 })
 cowplot::plot_grid(plotlist = plot.list, ncol = 4)
-
 ```
 
 
