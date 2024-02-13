@@ -553,7 +553,6 @@ FeaturePlot(seu, reduction = "umap", split.by = "group", features = "THRB(+)") &
 
 FeaturePlot(seu, reduction = "umap", split.by = "group", features = "THRB") &
   scale_color_viridis_c()
-
 ```
 
 
