@@ -288,7 +288,9 @@ p1 <- DimPlot(seu, reduction = "umap", group.by = "celltype") +
   NoLegend()
 p2 <- DimPlot(seu, reduction = "umap", group.by = "group") + NoLegend()
 
-## 可视化：UMAP on RAS (批次矫正后一定程度掩盖了组间差别，此方法在批次矫正后也一定程度上显示了组间的差别)
+## 可视化：UMAP on RAS 
+##(批次矫正后一定程度掩盖了组间差别，此方法在批次矫正后也一定程度上显示了组间的差别)
+## 这里确保组间的差异为什么不是批次，因为基因打分是天然去批次，给的是基因名，而不是表达量
 p3 <- DimPlot(seu, reduction = "umapRAS", group.by = "celltype") + ggsci::scale_color_d3("category20")
 p4 <- DimPlot(seu, reduction = "umapRAS", group.by = "group")
 
