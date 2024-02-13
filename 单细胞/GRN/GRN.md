@@ -760,7 +760,7 @@ vd.res <- readRDS("output/VD_res.rds")
 vd.res$TF <- sub("\\(\\+\\)", "", vd.res$gene)
 vd.res$cluster <- regulators[vd.res$TF,]$cluster
 rownames(vd.res) <- vd.res$TF
-regulators$var.group <- vd.res[rownames(regulators), ]$group
+regulators$var.group <- vd.res[rownames(regulators),]$group
 RegNetVis(regulators = regulators, edge.list = edge.list, size.by = "var.group", topN = 5)
 plot.list <- lapply(LETTERS[1:8], function(clu) {
   VDPlot(vd.res, y = "group", group.by = "cluster", group.show = clu)
@@ -782,12 +782,13 @@ RegNetVis(regulators = regulators, edge.list = edge.list, nodes.show = nodes.sho
 
 #### Method 2: TF activity similarity based clustering ####
 library(Seurat)
+
 CSI <- function(r1, r2) {
-  delta <- pccMat[r1,r2]
-  r.others <- setdiff(colnames(pccMat), c(r1,r2))
+  delta <- pccMat[r1, r2]
+  r.others <- setdiff(colnames(pccMat), c(r1, r2))
   N <- sum(pccMat[r1, r.others] < delta) + sum(pccMat[r2, r.others] < delta)
   M <- length(r.others) * 2
-  return(N/M)
+  return(N / M)
 }
 
 rasMat <- seu[["AUCell"]]@data
@@ -922,6 +923,106 @@ plot.list <- lapply(paste0("M", 1:11), function(clu) {
 cowplot::plot_grid(plotlist = plot.list, ncol = 4)
 ```
 
+##### C:去除响应的 组别
+
+```R
+### moudle F 响应了 IFNB
+### 去除moudle F的 reguton
+### 计算
+
+library(Seurat)
+
+seu <- qs::qread("output/seurat.aucell.qs")
+
+#### 1. remove module F ####
+
+regulon.cluster <- readRDS("output/regulon_clusters_network.rds")
+regulons.F <- subset(regulon.cluster, cluster == "F")$TF
+regulons.F <- paste0(regulons.F, "(+)")
+features.use <- setdiff(rownames(seu), regulons.F)
+## 用RAS matrix计算UMAP
+seu <- RunUMAP(object = seu,
+               features = features.use,
+               metric = "correlation", # 注意这里用correlation效果最好
+               reduction.name = "umapRASrmF",
+               reduction.key = "umapRASrmF_")
+
+## 可视化：UMAP on harmony
+p1 <- DimPlot(seu, reduction = "umap", group.by = "celltype") +
+  ggsci::scale_color_d3("category20") +
+  NoLegend()
+p2 <- DimPlot(seu, reduction = "umap", group.by = "group") + NoLegend()
+
+## 可视化：UMAP on RAS
+p3 <- DimPlot(seu, reduction = "umapRAS", group.by = "celltype") +
+  ggsci::scale_color_d3("category20") +
+  NoLegend()
+p4 <- DimPlot(seu, reduction = "umapRAS", group.by = "group") + NoLegend()
+
+## 可视化：UMAP on RAS (remove module F)
+p5 <- DimPlot(seu, reduction = "umapRASrmF", group.by = "celltype") + ggsci::scale_color_d3("category20")
+p6 <- DimPlot(seu, reduction = "umapRASrmF", group.by = "group")
+
+(p1 | p3 | p5) / (p2 | p4 | p6)
+
+
+#### 2. remove M5,6,11 ####
+
+regulon.cluster <- readRDS("output/clusters_activity_similarity.rds")
+## 去除M5,6,11的regulon
+regulons.rm <- subset(regulon.cluster, cluster %in% paste0("M", c(5, 6, 11)))$regulon
+features.use <- setdiff(rownames(seu), regulons.rm)
+## 用RAS matrix计算UMAP
+seu <- RunUMAP(object = seu,
+               features = features.use,
+               metric = "correlation", # 注意这里用correlation效果最好
+               reduction.name = "umapRASrm",
+               reduction.key = "umapRASrm_")
+
+## 可视化：UMAP on RAS (remove M5,6,11)
+p5 <- DimPlot(seu, reduction = "umapRASrm", group.by = "celltype") + ggsci::scale_color_d3("category20")
+p6 <- DimPlot(seu, reduction = "umapRASrm", group.by = "group")
+
+(p1 | p3 | p5) / (p2 | p4 | p6)
+
+
+#### 3. remove group specific regulons ####
+
+## 去group特异的regulon
+regulons.rm <- subset(vd.res, group > 0.1)$gene
+features.use <- setdiff(rownames(seu), regulons.rm)
+
+## 用RAS matrix计算UMAP
+seu <- RunUMAP(object = seu,
+               features = features.use,
+               metric = "correlation", # 注意这里用correlation效果最好
+               reduction.name = "umapRASrm",
+               reduction.key = "umapRASrm_")
+
+## 可视化：UMAP on RAS (remove group > 0.1)
+p5 <- DimPlot(seu, reduction = "umapRASrm", group.by = "celltype") + ggsci::scale_color_d3("category20")
+p6 <- DimPlot(seu, reduction = "umapRASrm", group.by = "group")
+
+(p1 | p3 | p5) / (p2 | p4 | p6)
+
+
+#### 4. remove celltype specific regulons ####
+regulons.rm <- subset(vd.res, celltype > 0.1)$gene
+features.use <- setdiff(rownames(seu), regulons.rm)
+
+## 用RAS matrix计算UMAP
+seu <- RunUMAP(object = seu,
+               features = features.use,
+               metric = "correlation", # 注意这里用correlation效果最好
+               reduction.name = "umapRASrmct",
+               reduction.key = "umapRASrmct_")
+
+## 可视化：UMAP on RAS (remove celltype > 0.1)
+p7 <- DimPlot(seu, reduction = "umapRASrmct", group.by = "celltype") + ggsci::scale_color_d3("category20")
+p8 <- DimPlot(seu, reduction = "umapRASrmct", group.by = "group")
+
+(p1 | p3 | p5 | p7) / (p2 | p4 | p6 | p8)
+```
 
 
 
