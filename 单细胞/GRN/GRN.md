@@ -1166,7 +1166,9 @@ RegulonGraphVis(data, tf.show = c("STAT2", "STAT1", "IRF7", "IRF2", "IRF8", "ETV
 ```
 
 #### 拓展
+
 ##### 1.特定细胞的身份是哪些TFs维持的
+
 ```R
 options(stringsAsFactors = F)
 library(Seurat)
@@ -1300,3 +1302,71 @@ DimPlot2(seu, reduction = "umap", group.by = "celltype", group.highlight = "B ce
   DimPlot2(seu, reduction = "umap", regulon = "EBF1(+)")
 ```
 
+##### 给定任意基因(包括miRNA, lncRNA等等不在cisTarget DB中收录的基因)，(任意基因：有变化的(在你的实验组里显著上调的))找到它上游的TF
+
+```R
+## input基因, TSS(regulatory region) GTF文件
+## chr4    76944450        76945150  # 上游500bp 下游200bp
+## input区间，找到这个区间里所有的TFBS
+library(Seurat)
+library(tidyverse)
+
+## 500 TFs
+header <- c("chrom", "start", "end", "motif", "score", "strand", "TF")
+jaspar.tfs <- read.table("output/CXCL10.candidate_regulators.bed", sep = "\t", header = F, col.names = header)
+
+length(unique(jaspar.tfs$TF))
+
+jaspar.tfs <- jaspar.tfs %>%
+  group_by(TF) %>%
+  summarise(nTFs = n()) %>%
+  arrange(desc(nTFs)) %>%
+  mutate(keep = nTFs > 5)
+
+## 169 TFs (JASPAR) motif DNA
+jaspar.tfs <- toupper(subset(jaspar.tfs, keep)$TF)
+
+jaspar.tfs <- lapply(jaspar.tfs, function(xx) {
+  unlist(strsplit(xx, split = "::"))
+}) %>% do.call(c, .) %>% unique()
+
+##
+vd.res <- read_tsv("output/de_regulons.tsv")
+vd.res$gene <- sub("\\(\\+\\)", "", vd.res$gene)
+head(vd.res)
+
+## 71 TFs (SCENIC) context-dependent(表达的信息)
+scenic.tfs <- subset(vd.res, group > 0.1)$gene
+
+###################################################
+## universal (JASPAR) + context-dependent (SCENIC)
+###################################################
+## 71 -> 12 TFs !!
+candidate.tfs <- intersect(scenic.tfs, jaspar.tfs)
+length(candidate.tfs)
+
+## 12 -> 4 TFs !! # 判断变化的方向，靶基因处理组上调，正调控的上游TF，TF活性上调
+vd.res.2 <- subset(vd.res, gene %in% candidate.tfs)
+
+header <- c("chrom", "start", "end", "motif", "score", "strand", "TF")
+input.bed <- read.table("output/10-1.CXCL10.candidate_regulators.bed", sep = "\t", header = F, col.names = header)
+
+output.bed <- subset(input.bed, TF %in% c("Stat2", "STAT2", "STAT1", "Stat1",
+                                          "HESX1", "Hesx1", "ATF3", "Atf3"))
+
+## 检查表达信息
+seu <- qs::qread("output/ifnb_pbmc.seurat.aucell.qs")
+DefaultAssay(seu) <- "AUCell"
+
+VlnPlot(seu, group.by = "celltype", features = c("CXCL10"), split.by = "group",
+        split.plot = TRUE, pt.size = 0, cols = c("blue", "red"))
+VlnPlot(seu, group.by = "celltype", features = c("STAT2(+)"), split.by = "group",
+        split.plot = TRUE, pt.size = 0, cols = c("blue", "red")) + ylab("TF activity")
+VlnPlot(seu, group.by = "celltype", features = c("STAT1(+)"), split.by = "group",
+        split.plot = TRUE, pt.size = 0, cols = c("blue", "red")) + ylab("TF activity")
+VlnPlot(seu, group.by = "celltype", features = c("HESX1(+)"), split.by = "group",
+        split.plot = TRUE, pt.size = 0, cols = c("blue", "red")) + ylab("TF activity")
+VlnPlot(seu, group.by = "celltype", features = c("ATF3(+)"), split.by = "group",
+        split.plot = TRUE, pt.size = 0, cols = c("blue", "red")) + ylab("TF activity")
+
+```
