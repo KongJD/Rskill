@@ -1302,7 +1302,7 @@ DimPlot2(seu, reduction = "umap", group.by = "celltype", group.highlight = "B ce
   DimPlot2(seu, reduction = "umap", regulon = "EBF1(+)")
 ```
 
-##### 给定任意基因(包括miRNA, lncRNA等等不在cisTarget DB中收录的基因)，(任意基因：有变化的(在你的实验组里显著上调的))找到它上游的TF
+##### 2.给定任意基因(包括miRNA, lncRNA等等不在cisTarget DB中收录的基因)，(任意基因：有变化的(在你的实验组里显著上调的))找到它上游的TF
 
 ```R
 ## input基因, TSS(regulatory region) GTF文件
