@@ -727,7 +727,141 @@ p1 + p2
 # https://www.nature.com/articles/s41467-021-23324-4
 ```
 
+#### 5.ProjectSVR
 
+```R
+library(tidyverse)
+library(Seurat)
+library(ProjectSVR)
+
+#' 利用ProjectSVR为有UMAP坐标的参考图谱制作参考模型用于Reference Mapping.
+#' 本节所用的参考图谱来自https://pubmed.ncbi.nlm.nih.gov/34914499/
+
+#### 3. 构建参考图谱 ####
+## 共150,361个细胞
+seu.ref <- qs::qread("input/ZhengLiangtao.CD4.seurat.qs")
+
+top.genes <- seu.ref@misc$markers
+top.genes <- lapply(top.genes, function(xx) head(xx, 20))
+sapply(top.genes, length)
+
+## 3.1 Gene set score
+system.time({
+  seu.ref <- UCell::AddModuleScore_UCell(seu.ref, features = top.genes, ncores = 20)
+})
+gss.mat <- select(seu.ref@meta.data, ends_with("_UCell"))
+
+## 3.2 Reference model (SVR)
+#' 我们使用支持向量回归模型(SVR)训练从基因集打分到UMAP坐标之间的映射。
+#' SVR是一种小样本学习模型，其计算复杂度为 ~o(n^2d)，其中n为样本数，d为特征数。
+#' 因此ProjectSVR引入了集成模型的思想，通过随机抽样获取一系列小样本，训练一组SVR
+#' 模型，以这组模型的中位数为最终的预测结果。
+system.time({
+  embeddings.df <- FetchData(seu.ref, vars = paste0("UMAP_", 1:2))
+  batch.size = 5000 # number of subsampled cells for each SVR model
+  n.models = 20     # number of SVR models trained
+  umap.model <- FitEnsembleSVM(feature.mat = gss.mat,
+                               emb.mat = embeddings.df,
+                               do.norm = "L2",
+                               batch.size = batch.size,
+                               n.models = n.models,
+                               cores = 20)
+
+})
+
+## 保存参考模型
+bg.genes <- rownames(seu.ref)
+reference <- list(
+  "models" = list(
+    "umap" = umap.model
+  ),
+  "genes" = list(
+    "gene.sets" = top.genes, # list
+    "bg.genes" = bg.genes # vector
+  ),
+  "ref.cellmeta" = seu.ref@misc$metacell # data.frame
+)
+saveRDS(reference, "input/ZhengLiangtao.CD4.ProjectSVR.ref_model.rds")
+
+#### 4. 参考映射 ####
+#' Query data: ICB Responsiveness in Breast Cancer
+#' 数据来源于https://pubmed.ncbi.nlm.nih.gov/33958794/
+reference <- readRDS("input/ZhengLiangtao.CD4.ProjectSVR.ref_model.rds")
+seu.q <- readRDS("input/ICB_BRCA.1864-counts_cd4tcell_cohort1.seurat.rds")
+annotations <- c(
+  "E" = "Responders",
+  "n/a" = "n/a",
+  "NE" = "Non-Responders"
+)
+seu.q$group <- annotations[seu.q$expansion]
+
+## ~ 125s (2 min)
+source("R/projectSVR_utils.R")
+system.time({
+  seu.q <- MapQuery.projectSVR(seu.q, reference = reference, ncores = 20)
+})
+
+DimPlot(seu.q, reduction = "ref.umap", group.by = "cellSubType", label = T)
+
+## 可视化（密度图）
+# PlotProjection(seu.q, reference, ref.color.by = "cluster.name", query.alpha = .3)
+
+PlotProjection(seu.q, reference, split.by = "cellSubType", ref.color.by = "cluster.name",
+               ref.size = .5, ref.alpha = .3, query.size = 1, query.alpha = .5, n.row = 2)
+
+seu.q2 <- subset(seu.q, group != "n/a" & timepoint == "Pre")
+PlotProjection(seu.q2, reference, split.by = "group", ref.color.by = "cluster.name",
+               ref.size = .5, ref.alpha = .3, query.size = 1, query.alpha = .5, n.row = 2)
+
+
+#### 5. 细胞丰度的组间差异 ####
+#' 在这一部分，我们将展示如何在投影空间中进行label transfer获得对query cells的注释。
+#' 在此基础上，我们可以统计细胞丰度的组间差异。
+source("R/projectSVR_utils.R")
+
+#### 5.1 标签转移 ####
+seu.q <- LabelTransfer.projectSVR(seu.q, reference)
+
+## 注释的不确定性
+FeaturePlot(seu.q, reduction = "ref.umap", features = "knn.pred.perc")
+
+data.stat <- table(seu.q$cellSubType, seu.q$knn.pred.celltype)
+data.stat <- prop.table(data.stat, margin = 1)
+pheatmap::pheatmap(data.stat, cluster_cols = F,
+                   display_numbers = T, number_format = "%.2f",
+                   number_color = "black")
+
+#### 5.2 细胞丰度的组间差异 ####
+seu.q2 <- subset(seu.q, group != "n/a" & timepoint == "Pre")
+data.stat <- PercentageStat(seu.q2@meta.data, by = "group", fill = "knn.pred.celltype")
+## AlluviaPlot的代码参考:
+## https://stackoverflow.com/questions/73372641/shaded-area-between-bars-using-ggplot2
+AlluviaPlot(seu.q2@meta.data, by = "group", fill = "knn.pred.celltype",
+            colors = reference$ref.cellmeta$colors,
+            bar.width = .5)
+
+## O/E ratio
+## 下图参考
+## https://www.nature.com/articles/s41586-022-05400-x Figure 3b
+seu.q2$group <- factor(seu.q2$group)
+GroupPreferencePlot(seu.q2@meta.data, group.by = "group", preference.on = "knn.pred.celltype")
+
+
+## Different cellular abundance (Wilcoxon test)
+da.test <- AbundanceTest(cellmeta = seu.q2@meta.data,
+                         celltype.col = "knn.pred.celltype",
+                         sample.col = "patient_id",
+                         group.col = "group")
+## Volcano plot
+VolcanoPlot(da.test, xlab = "log2(R / NR)", ylab = "Frequency",
+            colors = reference$ref.cellmeta$colors)
+## Box plot
+BoxPlot(cellmeta = seu.q2@meta.data, celltype.col = "knn.pred.celltype",
+        sample.col = "patient_id", group.col = "group",
+        celltypes.show = c("CD4.c17(IFNG+ Tfh/Th1)", "CD4.c16(IL21+ Tfh)"),
+        legend.ncol = 6) +
+  scale_x_discrete(labels = c("NR", "R"))
+```
 
 
 
