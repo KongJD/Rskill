@@ -92,10 +92,10 @@ seu.ref.cd4 <- base::Reduce(merge, seu.list)
 ## 写入cellmeta信息
 cellmeta <- readRDS("input/ZhengLiangtao/CD4.cellmeta.rds")
 colnames(cellmeta)[22:23] <- paste0("UMAP_", 1:2)
-cellmeta <- cellmeta[rownames(seu.ref.cd4@meta.data), ]
+cellmeta <- cellmeta[rownames(seu.ref.cd4@meta.data),]
 
 umap.emb <- cellmeta[, paste0("UMAP_", 1:2)] %>% as.matrix()
-cellmeta <- cellmeta[, -c(22,23)]
+cellmeta <- cellmeta[, -c(22, 23)]
 
 seu.ref.cd4@meta.data <- cellmeta
 seu.ref.cd4[["umap"]] <- CreateDimReducObject(umap.emb, assay = "RNA")
@@ -107,8 +107,8 @@ seu.ref.cd4$meta.cluster.name <- plyr::mapvalues(
 
 ## 写入metacell的信息
 text.pos.df <- data.frame(
-  x = c(-4.5, 4, 3.5,  2, -4.5, -7, -6),
-  y = c(  5,  4, -4,  -6, -6,   -2,  2),
+  x = c(-4.5, 4, 3.5, 2, -4.5, -7, -6),
+  y = c(5, 4, -4, -6, -6, -2, 2),
   label = c("Tn", "Treg", "Tfh", "Tfh/Th1", "Temra", "Tem", "Tm")
 )
 
@@ -147,10 +147,10 @@ seu.ref.cd8 <- base::Reduce(merge, seu.list)
 ## 写入cellmeta信息
 cellmeta <- readRDS("input/ZhengLiangtao/CD8.cellmeta.rds")
 colnames(cellmeta)[22:23] <- paste0("UMAP_", 1:2)
-cellmeta <- cellmeta[rownames(seu.ref.cd8@meta.data), ]
+cellmeta <- cellmeta[rownames(seu.ref.cd8@meta.data),]
 
 umap.emb <- cellmeta[, paste0("UMAP_", 1:2)] %>% as.matrix()
-cellmeta <- cellmeta[, -c(22,23)]
+cellmeta <- cellmeta[, -c(22, 23)]
 
 seu.ref.cd8@meta.data <- cellmeta
 seu.ref.cd8[["umap"]] <- CreateDimReducObject(umap.emb, assay = "RNA")
@@ -162,8 +162,8 @@ seu.ref.cd8$meta.cluster.name <- plyr::mapvalues(
 
 ## 写入metacell的信息
 text.df <- data.frame(
-  x = c(-6, -5, 2, 6,  3, -5, -4.5, 0),
-  y = c( 1,  7, 6, 5, -7, -5, -1  , 0),
+  x = c(-6, -5, 2, 6, 3, -5, -4.5, 0),
+  y = c(1, 7, 6, 5, -7, -5, -1, 0),
   label = c("ISG+", "Tex", "KIR+ NK-like", "Temra", "Tn", "Tc17", "Trm", "Tem")
 )
 
@@ -179,3 +179,154 @@ seu.ref.cd8@misc$markers <- top.genes
 
 qs::qsave(seu.ref.cd8, "input/ZhengLiangtao.CD8.seurat.qs")
 ```
+
+#### 2. refference mapping 
+
+```R
+library(Seurat)
+library(tidyverse)
+#' 前后的Monocyte投影到DISCO Blood Atlas(v1.1)中的Monocyte参考图谱上。
+
+#### 数据清洗(Reference) ####
+#### https://www.immunesinglecell.org/atlasList
+seu.ref <- readRDS("input/disco_blood_v1.1.rds")
+seu.ref <- CreateSeuratObject(
+  counts = seu.ref[["RNA"]]@counts,
+  meta.data = seu.ref@meta.data)
+
+## 修改cellmeta
+seu.ref$disease[is.na(seu.ref$disease)] <- "control"
+seu.ref$celltype <- seu.ref$ct
+seu.ref$ct <- NULL
+d <- c(
+  "mild" = "covid-mild",
+  "Mild COVID" = "covid-mild",
+  "Moderate" = "covid-mild",
+  "severe" = "covid-severe",
+  "Severe" = "covid-severe",
+  "Severe COVID" = "covid-severe"
+)
+seu.ref$disease_subtype <- d[seu.ref$disease_subtype]
+
+## 选择Monocyte
+seu.ref <- subset(seu.ref, celltype %in% c("CD14 monocyte", "CD14/CD16 monocyte", "CD16 monocyte"))
+
+## 舍弃细胞数过少的研究(< 500 cells)
+proj.stat <- table(seu.ref$project_id)
+proj.used <- names(proj.stat)[proj.stat > 500]
+seu.ref <- subset(seu.ref, project_id %in% proj.used)
+
+qs::qsave(seu.ref, "input/disco_blood.mono.seurat.raw.qs")
+
+#### 构建参考图谱 ####
+seu.ref <- qs::qread("input/disco_blood.mono.seurat.raw.qs")
+obj.list <- SplitObject(seu.ref, split.by = "project_id")
+
+for (i in 1:length(obj.list)) {
+  obj.list[[i]] <- NormalizeData(obj.list[[i]], verbose = FALSE)
+  obj.list[[i]] <- FindVariableFeatures(object = obj.list[[i]],
+                                        selection.method = "vst",
+                                        nfeatures = 2000,
+                                        verbose = FALSE)
+}
+## Anchored-CCA
+system.time({
+  anchors <- FindIntegrationAnchors(
+    object.list = obj.list,
+    dims = 1:20)
+})
+
+## Integration:
+## 返回一个经过矫正的基因表达矩阵，存储在integrated assay中
+## IntegrateData函数，看源代码
+system.time({
+  seu.ref <- IntegrateData(
+    anchorset = anchors,
+    dims = 1:20)
+})
+
+## Dimension reduction
+DefaultAssay(seu.ref) <- "integrated"
+seu.ref <- ScaleData(seu.ref, verbose = FALSE)
+seu.ref <- RunPCA(seu.ref, npcs = 20, verbose = FALSE)
+seu.ref <- RunUMAP(seu.ref, reduction = "pca",
+                   dims = 1:20, return.model = TRUE,
+                   verbose = FALSE)
+
+p1 <- DimPlot(seu.ref, reduction = "umap",
+              group.by = "celltype", label = T) +
+  ggsci::scale_color_d3()
+p2 <- DimPlot(seu.ref, reduction = "umap",
+              group.by = "disease", label = F) +
+  ggsci::scale_color_d3()
+DimPlot(seu.ref, reduction = "umap",
+        group.by = "disease_subtype", label = F)
+DimPlot(seu.ref, reduction = "umap",
+        cells.highlight = rownames(subset(seu.ref@meta.data, disease == "thrombocytopenia syndrome")),
+        label = F)
+p1 + p2
+
+
+## 保存Reference data
+qs::qsave(anchors, "input/disco_blood.mono.seurat.anchors.qs")
+qs::qsave(seu.ref, "input/disco_blood.mono.seurat.reference.qs")
+
+#### 参考映射 ####
+seu.q <- readRDS("input/infb-pbmc.seurat.rds")
+seu.q <- subset(seu.q, celltype %in% c("CD14 Mono", "CD16 Mono"))
+
+## 参考映射分两步
+## step1: Find anchors between query and ref
+system.time({
+  anchors <- FindTransferAnchors(
+    reference = seu.ref,
+    query = seu.q,
+    dims = 1:20,
+    reference.reduction = "pca",
+    verbose = T)
+})
+
+## step2: map query to reference (fast!)
+seu.q <- MapQuery(
+  anchorset = anchors,
+  reference = seu.ref,
+  query = seu.q,
+  reference.reduction = "pca",
+  reduction.model = "umap")
+
+p1 <- DimPlot(seu.q, reduction = "ref.umap", group.by = "group")
+p2 <- DimPlot(seu.q, reduction = "ref.umap", group.by = "celltype")
+p1 + p2
+
+## 可视化
+source("R/plot_projection.R")
+seu.q1 <- subset(seu.q, group == "CTRL")
+seu.q2 <- subset(seu.q, group == "STIM")
+
+p1 <- PlotProjection(
+  ref = seu.ref, query = seu.q1, query.reduction = "ref.umap",
+  labels.col = "disease_subtype", ref.alpha = 1) +
+  ggtitle("CTRL")
+p2 <- PlotProjection(
+  ref = seu.ref, query = seu.q2, query.reduction = "ref.umap",
+  labels.col = "disease_subtype", ref.alpha = 1) +
+  ggtitle("STIM")
+p1 + p2
+
+#### 补充说明 ####
+#‘ 在整合效果不好的时候，可以考虑参考映射
+# https://satijalab.org/seurat/articles/integration_mapping.html
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
