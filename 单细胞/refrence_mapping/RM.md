@@ -435,7 +435,295 @@ p1 + p2
 # https://www.nature.com/articles/s41467-021-25957-x
 ```
 
+#### 4.reference mapping 基于ProjecTILs
 
+```R
+### 下载参考图谱
+# human CD8+ TIL atlas:
+# https://doi.org/10.6084/m9.figshare.21931875.v2
+
+# human CD4+ TIL atlas:
+# https://doi.org/10.6084/m9.figshare.21981536.v1
+
+# human blood and tumor-infiltrating DC atlas:
+# https://doi.org/10.6084/m9.figshare.22040801.v1
+
+# mouse TIL atlas:
+# https://doi.org/10.6084/m9.figshare.12478571
+
+# mouse acute and chronic viral infection CD8 T cell atlas:
+# https://doi.org/10.6084/m9.figshare.12489518
+
+# mouse acute and chronic viral infection CD4 T cell atlas:
+# https://doi.org/10.6084/m9.figshare.16592693
+
+rm(list = ls())
+library(ProjecTILs)
+library(STACAS)
+library(Seurat)
+library(SignatuR)
+library(UCell)
+library(scGate)
+library(tidyverse)
+library(patchwork)
+setwd(here::here())
+
+#### 参考图谱的数据结构 ####
+seu.ref <- load.reference.map(ref = "input/Atlas-ProjectTILs/ref_TILAtlas_mouse_v1.rds")
+misc <- seu.ref@misc
+
+ref.cols <- c("#edbe2a", "#A58AFF", "#53B400", "#F8766D", "#00B6EB", "#d1cfcc", "#FF0000", "#87f6a5", "#e812dd")
+DimPlot(seu.ref, label = T, cols = ref.cols)
+
+#### 案例1: 示例数据 ####
+### 1. Quick start
+# 读入Query数据
+# https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE86031
+seu.q <- ProjecTILs::query_example_seurat
+
+# Reference mapping：注意query.projected的数据结构
+# Run.ProjectTILs()
+# => 1. make.projection()
+# => 2. cellstate.predict()
+query.projected <- Run.ProjecTILs(
+  query = seu.q,
+  ref = seu.ref,
+  filter.cells = F) # Try to set it TRUE
+
+T_model <- gating_model(name = "T", signature = c("Cd3d", "Cd3e", "Cd3g", "Cd2"))
+query.projected <- Run.ProjecTILs(
+  query = seu.q,
+  ref = seu.ref,
+  filter.cells = T, # Try to set it TRUE
+  scGate_model = T_model)
+
+
+# 可视化(密度图)
+plot.projection(seu.ref, query.projected, linesize = 0.5, pointsize = 0.5)
+
+# 可视化(柱状图)
+plot.statepred.composition(seu.ref, query.projected, metric = "Percent")
+
+# 可视化(marker基因的比较: query vs reference)
+plot.states.radar(seu.ref, query = query.projected, min.cells = 30)
+
+# 可视化(program的比较: query vs reference)
+programs <- GetSignature(SignatuR$Mm$Programs)
+seu.ref <- AddModuleScore_UCell(seu.ref, features = programs,
+                                assay = "RNA", name = NULL)
+query.projected <- AddModuleScore_UCell(query.projected, features = programs,
+                                        assay = "RNA", name = NULL)
+plot.states.radar(seu.ref, query = query.projected, meta4radar = names(programs))
+
+# 细胞亚群注释(Label transfer)
+seu.q <- seu.q %>%
+  FindVariableFeatures(nfeatures = 500) %>%
+  ScaleData() %>%
+  RunPCA(npcs = 10) %>%
+  RunUMAP(dims = 1:10)
+
+DimPlot(seu.q)
+
+# Label transfer in PCA space
+seu.q <- ProjecTILs.classifier(
+  query = seu.q,
+  ref = seu.ref,
+  filter.cells = F,
+  reduction = "pca",
+  ndim = 15,
+  labels.col = "functional.cluster")
+sel.cols <- grepl("functional.cluster", colnames(seu.q@meta.data))
+colnames(seu.q@meta.data)[sel.cols] <- "celltype.pred.pca"
+
+# Label transfer in UMAP space
+seu.q <- ProjecTILs.classifier(
+  query = seu.q,
+  ref = seu.ref,
+  filter.cells = F,
+  reduction = "umap",
+  ndim = 2,
+  labels.col = "functional.cluster")
+sel.cols <- grepl("functional.cluster", colnames(seu.q@meta.data))
+colnames(seu.q@meta.data)[sel.cols] <- "celltype.pred.umap"
+
+palette <- c("#edbe2a", "#A58AFF", "#53B400", "#F8766D", "#00B6EB", "#d1cfcc", "#FF0000",
+             "#87f6a5", "#e812dd", "#777777")
+names(palette) <- c(levels(seu.ref$functional.cluster), "NA")
+
+p1 <- DimPlot(seu.q, group.by = "celltype.pred.pca", cols = palette)
+p2 <- DimPlot(seu.q, group.by = "celltype.pred.umap", cols = palette)
+p1 + p2
+
+#### 案例2: 将人的数据投影到小鼠的图谱上 ####
+# https://pubmed.ncbi.nlm.nih.gov/30388456/
+# Q: 那些T细胞和黑色素瘤病人免疫检查点阻断(ICB)响应程度相关？
+# 注意这是小鼠的T细胞图谱
+seu.ref <- load.reference.map(ref = "input/Atlas-ProjectTILs/ref_TILAtlas_mouse_v1.rds")
+# Query data为人的T细胞数据
+seu.q <- qs::qread("input/SadeFeldman.seurat.qs")
+# View(seu.q@meta.data)
+seu.q <- subset(seu.q, Time == "Pre")
+
+# Reference mapping: ~ 382s (6.3 min)
+system.time({
+  seu.q1 <- make.projection(query = seu.q, ref = seu.ref)
+})
+
+# 并行计算
+system.time({
+  seu.q.list <- SplitObject(seu.q, split.by = "Sample")
+  seu.q.list <- make.projection(query = seu.q.list, ref = seu.ref, ncores = 10)
+  seu.q2 <- base::Reduce(f = merge.Seurat.embeddings, x = seu.q.list)
+})
+
+# 可视化（密度图）
+p1 <- plot.projection(ref = seu.ref, query = seu.q1, ref.alpha = 1)
+p2 <- plot.projection(ref = seu.ref, query = seu.q2, ref.alpha = 1)
+p1 + p2
+
+# Label transfer
+seu.q1 <- cellstate.predict(ref = seu.ref, query = seu.q1, reduction = "pca")
+sel.cols <- grepl("functional.cluster", colnames(seu.q1@meta.data))
+colnames(seu.q1@meta.data)[sel.cols] <- c("celltype.pred.pca", "celltype.conf.pca")
+
+seu.q1 <- cellstate.predict(ref = seu.ref, query = seu.q1, reduction = "umap")
+sel.cols <- grepl("functional.cluster", colnames(seu.q1@meta.data))
+colnames(seu.q1@meta.data)[sel.cols] <- c("celltype.pred.umap", "celltype.conf.umap")
+
+table(seu.q1$celltype.pred.pca, seu.q1$celltype.pred.umap)
+
+p1 <- DimPlot(seu.q1, reduction = "umap", group.by = "celltype.pred.pca", label = T)
+p2 <- DimPlot(seu.q1, reduction = "umap", group.by = "celltype.pred.umap", label = T)
+(p1 + p2) & ggsci::scale_color_d3("category20")
+
+# 比较ICB响应组与不响应组
+seu.q1$functional.cluster <- seu.q1$celltype.pred.pca
+seu.q.list <- SplitObject(seu.q1, split.by = "Response")
+
+genes.show <- c("Foxp3", "Cd4", "Cd8a", "Tcf7", "Ccr7",
+                "Gzmb", "Pdcd1", "Havcr2", "Tox", "Entpd1", "Cxcr5",
+                "Ifng", "Cxcl13", "Xcl1", "Itgae")
+
+plot.states.radar(ref = seu.ref,
+                  query = seu.q.list,
+                  min.cells = 20,
+                  genes4radar = genes.show)
+
+p1 <- plot.projection(seu.ref, seu.q.list$Responder, ref.alpha = 1) +
+  ggtitle("Responder")
+p2 <- plot.projection(seu.ref, seu.q.list$`Non-responder`, ref.alpha = 1) +
+  ggtitle("Non-responder")
+p1 + p2
+
+p3 <- plot.statepred.composition(seu.ref, seu.q.list$Responder, metric = "Percent") +
+  ggtitle("Responder")
+p4 <- plot.statepred.composition(seu.ref, seu.q.list$`Non-responder`, metric = "Percent") +
+  ggtitle("Non-responder")
+(p3 + p4) & theme(plot.title = element_text(hjust = .5, face = "bold"))
+
+
+#### 案例3: 用ProjectTILs创建自己的参考图谱 ####
+## 读入Reference
+seu.ref <- qs::qread("input/disco_blood.mono.seurat.raw.qs")
+## 通过`STACAS`进行数据整合,以project_id作为批次
+obj.list <- SplitObject(seu.ref, split.by = "project_id")
+system.time({
+  seu.ref <- Run.STACAS(
+    object.list = obj.list,
+    dims = 1:20,
+    anchor.features = 2000)
+})
+
+seu.ref <- RunUMAP(seu.ref, dims = 1:20)
+
+p1 <- DimPlot(seu.ref, reduction = "umap",
+              group.by = "celltype", label = T) +
+  ggsci::scale_color_d3()
+p2 <- DimPlot(seu.ref, reduction = "umap",
+              group.by = "disease", label = F) +
+  ggsci::scale_color_d3()
+DimPlot(seu.ref, reduction = "umap",
+        group.by = "disease_subtype", label = F)
+DimPlot(seu.ref, reduction = "umap",
+        cells.highlight = rownames(subset(seu.ref@meta.data, disease == "thrombocytopenia syndrome")),
+        label = F)
+p1 + p2
+
+qs::qsave(seu.ref, "input/disco_blood.mono.seurat.qs")
+
+## make.reference()
+## => 1. 重新计算PCA: `prcomp.seurat()`
+## => 2. 计算UMAP投影相关的参数
+## 比较seu.ref.1@misc和seu.ref.2@misc
+system.time({
+  seu.ref.1 <- make.reference(
+    ref = seu.ref,
+    recalculate.umap = FALSE,
+    atlas.name = "mono-atlas",
+    annotation.column = "celltype")
+})
+
+system.time({
+  seu.ref.2 <- make.reference(
+    ref = seu.ref,
+    umap.method = 'umap',
+    recalculate.umap = TRUE,
+    atlas.name = "mono-altas",
+    annotation.column = "celltype")
+})
+
+## 保存Reference data
+qs::qsave(seu.ref.1, "input/disco_blood.mono.projecTILs.origUMAP.qs")
+qs::qsave(seu.ref.2, "input/disco_blood.mono.projecTILs.recalUMAP.qs")
+
+## Query data
+seu.q <- readRDS("input/infb-pbmc.seurat.rds")
+seu.q <- subset(seu.q, celltype %in% c("CD14 Mono", "CD16 Mono"))
+## 保存de novo UMAP
+seu.q[["umap.orig"]] <- seu.q[["umap"]]
+
+## Project on original UMAP
+## Save to seu.q1[["umap"]]
+system.time({
+  seu.q1 <- make.projection(
+    query = seu.q,
+    filter.cells = F,
+    ref = seu.ref.1)
+})
+
+## Project on recalculated UMAP
+system.time({
+  seu.q2 <- make.projection(
+    query = seu.q,
+    filter.cells = F,
+    ref = seu.ref.2)
+})
+
+p1 <- DimPlot(seu.q, reduction = "umap", group.by = "group")
+p2 <- DimPlot(seu.q, reduction = "umap", group.by = "celltype")
+p1 + p2
+
+# 可视化（密度图）
+seu.q1 <- subset(seu.q, group == "CTRL")
+seu.q2 <- subset(seu.q, group == "STIM")
+
+p1 <- plot.projection(
+  ref = seu.ref, query = seu.q1,
+  labels.col = "celltype", ref.alpha = 1) +
+  ggtitle("CTRL")
+p2 <- plot.projection(
+  ref = seu.ref, query = seu.q2,
+  labels.col = "celltype", ref.alpha = 1) +
+  ggtitle("STIM")
+p1 + p2
+
+
+#### 相关阅读 ####
+# https://github.com/carmonalab/ProjecTILs
+# https://carmonalab.github.io/ProjecTILs.demo/tutorial.html
+# https://carmonalab.github.io/ProjecTILs_CaseStudies/
+# https://www.nature.com/articles/s41467-021-23324-4
+```
 
 
 
