@@ -553,6 +553,10 @@ p1 <- DimPlot(seu.q, group.by = "celltype.pred.pca", cols = palette)
 p2 <- DimPlot(seu.q, group.by = "celltype.pred.umap", cols = palette)
 p1 + p2
 
+
+```
+
+```R
 #### 案例2: 将人的数据投影到小鼠的图谱上 ####
 # https://pubmed.ncbi.nlm.nih.gov/30388456/
 # Q: 那些T细胞和黑色素瘤病人免疫检查点阻断(ICB)响应程度相关？
@@ -619,8 +623,9 @@ p3 <- plot.statepred.composition(seu.ref, seu.q.list$Responder, metric = "Percen
 p4 <- plot.statepred.composition(seu.ref, seu.q.list$`Non-responder`, metric = "Percent") +
   ggtitle("Non-responder")
 (p3 + p4) & theme(plot.title = element_text(hjust = .5, face = "bold"))
+```
 
-
+```R
 #### 案例3: 用ProjectTILs创建自己的参考图谱 ####
 ## 读入Reference
 seu.ref <- qs::qread("input/disco_blood.mono.seurat.raw.qs")
@@ -721,9 +726,6 @@ p1 + p2
 # https://carmonalab.github.io/ProjecTILs_CaseStudies/
 # https://www.nature.com/articles/s41467-021-23324-4
 ```
-
-
-
 
 
 
