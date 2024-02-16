@@ -717,8 +717,6 @@ p2 <- plot.projection(
   ggtitle("STIM")
 p1 + p2
 
-
-#### 相关阅读 ####
 # https://github.com/carmonalab/ProjecTILs
 # https://carmonalab.github.io/ProjecTILs.demo/tutorial.html
 # https://carmonalab.github.io/ProjecTILs_CaseStudies/
