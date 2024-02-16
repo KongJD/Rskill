@@ -180,7 +180,7 @@ seu.ref.cd8@misc$markers <- top.genes
 qs::qsave(seu.ref.cd8, "input/ZhengLiangtao.CD8.seurat.qs")
 ```
 
-#### 2. refference mapping 
+#### 2. refference mapping 基于Seurat
 
 ```R
 library(Seurat)
@@ -318,7 +318,122 @@ p1 + p2
 # https://satijalab.org/seurat/articles/integration_mapping.html
 ```
 
+#### 3. refference mapping 基于harmony
 
+```R
+library(symphony)
+library(Seurat)
+library(tidyverse)
+#' phony(based on Harmony)流程提供的Reference Mapping接口，
+#' 将INFB刺激前后的Monocyte投影到DISCO Blood Atlas(v1.1)中的Monocyte参考图谱上。
+#### 3. 构建参考图谱 ####
+seu.ref <- qs::qread("input/disco_blood.mono.seurat.raw.qs")
+seu.ref <- NormalizeData(seu.ref)
+## 3.1 鉴定高可变基因(HVGs)
+obj.list <- SplitObject(seu.ref, split.by = "project_id")
+
+for (i in 1:length(obj.list)) {
+  obj.list[[i]] <- FindVariableFeatures(object = obj.list[[i]],
+                                        selection.method = "vst",
+                                        nfeatures = 2000,
+                                        verbose = FALSE)
+}
+vfeatures <- SelectIntegrationFeatures(obj.list, nfeatures = 2000)
+seu.ref[["RNA"]]@var.features <- vfeatures
+
+## 3.2 Harmony整合
+source("R/symphony_utils.R")
+## 3.2a. 记录Scale data的相关参数(mean, sd)用于后续参考映射
+## `CalMeanSds()` + `DoScale()` = `ScaleData()`
+vfeatures_means_sds <- CalMeanSDs(seu.ref)
+seu.ref <- DoScale(seu.ref, vfeatures_means_sds = vfeatures_means_sds)
+## 3.2b. PCA
+seu.ref <- RunPCA(seu.ref, npcs = 20, verbose = FALSE)
+
+## 3.2c. Harmony (return with full harmony object): ~ 259s (4.3 min)
+system.time({
+  set.seed(0)
+  Z_pca_ref <- seu.ref[["pca"]]@cell.embeddings
+  ref_metadata <- seu.ref@meta.data
+  ref_harmObj <- harmony::HarmonyMatrix(
+    data_mat = Z_pca_ref,     ## PCA embedding matrix of cells
+    meta_data = ref_metadata, ## data.frame with cell labels
+    vars_use = c('project_id'),   ## variable to integrate out
+    nclust = NULL,            ## number of clusters in Harmony model
+    max.iter.harmony = 10,
+    return_object = TRUE,     ## return the full Harmony model object
+    do_pca = FALSE,           ## don't recompute PCs
+  )
+})
+
+## 3.3 将harmony对象转变为symphony对象，用于参考映射 (~ 1 min)
+system.time({
+  vfeature_loadings <- seu.ref[["pca"]]@feature.loadings
+  save_uwot_path <- file.path(getwd(), "input/disco_blood.mono.symphony.uwot_model")
+  reference <- symphony::buildReferenceFromHarmonyObj(
+    ref_harmObj,            # output object from HarmonyMatrix()
+    ref_metadata,           # reference cell metadata
+    vfeatures_means_sds,    # gene names, means, and std devs for scaling
+    vfeature_loadings,      # genes x PCs matrix
+    verbose = TRUE,         # verbose output
+    do_umap = TRUE,         # Set to TRUE only when UMAP model was saved for reference
+    save_uwot_path = save_uwot_path) # save_uwot_path should be full path.
+})
+## 保存参考模型
+saveRDS(reference, 'input/disco_blood.mono.symphony.reference.rds')
+
+## 将harmony的结果保存到Seurat对象中
+seu.ref[["harmony"]] <- CreateDimReducObject(
+  embeddings = t(reference$Z_corr), key = "harmony_", assay = "RNA")
+
+seu.ref[["umap"]] <- CreateDimReducObject(
+  embeddings = reference$umap$embedding, key = "UMAP_", assay = "RNA")
+
+p1 <- DimPlot(seu.ref, reduction = "umap",
+              group.by = "celltype", label = T) +
+  ggsci::scale_color_d3()
+p2 <- DimPlot(seu.ref, reduction = "umap",
+              group.by = "disease", label = F) +
+  ggsci::scale_color_d3()
+
+p1 + p2
+
+DimPlot(seu.ref, reduction = "umap",
+        group.by = "disease_subtype", label = F)
+DimPlot(seu.ref, reduction = "umap",
+        cells.highlight = rownames(subset(seu.ref@meta.data, disease == "thrombocytopenia syndrome")),
+        label = F)
+
+
+#### 4. 参考映射 ####
+seu.q <- readRDS("input/infb-pbmc.seurat.rds")
+seu.q <- subset(seu.q, celltype %in% c("CD14 Mono", "CD16 Mono"))
+
+source("R/symphony_utils.R")
+seu.q <- MapQuery.Symphony(seu.q, reference = reference, assay.q = "RNA")
+
+p1 <- DimPlot(seu.q, reduction = "ref.umap", group.by = "group")
+p2 <- DimPlot(seu.q, reduction = "ref.umap", group.by = "celltype")
+p1 + p2
+
+## 可视化
+source("R/plot_projection.R")
+seu.q1 <- subset(seu.q, group == "CTRL")
+seu.q2 <- subset(seu.q, group == "STIM")
+
+p1 <- PlotProjection(
+  ref = seu.ref, query = seu.q1, query.reduction = "ref.umap",
+  labels.col = "disease_subtype", ref.alpha = 1) +
+  ggtitle("CTRL")
+p2 <- PlotProjection(
+  ref = seu.ref, query = seu.q2, query.reduction = "ref.umap",
+  labels.col = "disease_subtype", ref.alpha = 1) +
+  ggtitle("STIM")
+p1 + p2
+
+# https://github.com/immunogenomics/symphony
+# https://www.nature.com/articles/s41467-021-25957-x
+```
 
 
 
