@@ -476,7 +476,6 @@ ref.cols <- c("#edbe2a", "#A58AFF", "#53B400", "#F8766D", "#00B6EB", "#d1cfcc", 
 DimPlot(seu.ref, label = T, cols = ref.cols)
 
 #### 案例1: 示例数据 ####
-### 1. Quick start
 # 读入Query数据
 # https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE86031
 seu.q <- ProjecTILs::query_example_seurat
