@@ -89,7 +89,7 @@ plotDendroAndColors(sampleTree2,
                     main = "Sample dendrogram and trait heatmap")
 ```
 
-#### 2 网络构建 
+#### 2 网络构建，模块化
 
 ```R
 library(WGCNA)
@@ -268,3 +268,92 @@ geneOrder = order(geneInfo0$moduleColor, -abs(geneInfo0$GS.weight))
 geneInfo = geneInfo0[geneOrder,]
 ```
 
+#### 4.可视化
+
+```R
+annot = data.table::fread(file = "GeneAnnotation.csv", data.table = F)
+# Match probes in the data set to the probe IDs in the annotation file 
+probes = names(datExpr)
+probes2annot = match(probes, annot$substanceBXH)
+allLLIDs = annot$LocusLinkID[probes2annot]
+# $ Choose interesting modules
+intModules = c("brown", "red", "salmon")
+for (module in intModules) {
+  modGenes = (moduleColors == module)
+  modLLIDs = allLLIDs[modGenes];
+  fileName = paste("LocusLinkIDs-", module, ".txt", sep = "")
+  write.table(as.data.frame(modLLIDs), file = fileName, row.names = FALSE, col.names = FALSE)
+}
+# As background in the enrichment analysis, we will use all probes in the analysis.
+fileName = paste("LocusLinkIDs-all.txt", sep = "")
+## 官网不推荐这种方式
+### 这里需要改写
+GOenr = GOenrichmentAnalysis(moduleColors, allLLIDs, organism = "mouse", nBestP = 10)
+
+tab = GOenr$bestPTerms[[4]]$enrichment
+keepCols = c(1, 2, 5, 6, 7, 12, 13)
+screenTab = tab[, keepCols]
+# Round the numeric columns to 2 decimal places:
+numCols = c(3, 4);
+screenTab[, numCols] = signif(apply(screenTab[, numCols], 2, as.numeric), 2)
+# Truncate the the term name to at most 40 characters
+screenTab[, 7] = substring(screenTab[, 7], 1, 40)
+# Shorten the column names:
+colnames(screenTab) = c("module", "size", "p-val", "Bonf", "nInTerm", "ont", "term name");
+rownames(screenTab) = NULL;
+# Set the width of R's output. The reader should play with this number to obtain satisfactory output.
+options(width = 95)
+```
+
+```R
+dissTOM = 1 - TOMsimilarityFromExpr(datExpr, power = 6)
+# Transform dissTOM with a power to make moderately strong connections more visible in the heatmap
+plotTOM = dissTOM^7
+diag(plotTOM) = NA
+sizeGrWindow(9, 9)
+TOMplot(plotTOM, geneTree, moduleColors, main = "Network heatmap plot, all genes")
+
+nSelect = 400
+# For reproducibility, we set the random seed
+set.seed(10)
+select = sample(nGenes, size = nSelect);
+selectTOM = dissTOM[select, select];
+# There's no simple way of restricting a clustering tree to a subset of genes, so we must re-cluster.
+selectTree = hclust(as.dist(selectTOM), method = "average")
+selectColors = moduleColors[select];
+# Open a graphical window
+sizeGrWindow(9, 9)
+# Taking the dissimilarity to a power, say 10, makes the plot more informative by effectively changing 
+# the color palette; setting the diagonal to NA also improves the clarity of the plot
+plotDiss = selectTOM^7
+diag(plotDiss) = NA;
+TOMplot(plotDiss, selectTree, selectColors, main = "Network heatmap plot, selected genes")
+### 颜色
+library(gplots)
+myheatcol = colorpanel(250, 'red', "orange", 'lemonchiffon')
+TOMplot(plotDiss, selectTree, selectColors, main = "Network heatmap plot, selected genes", col = myheatcol)
+# 寻找meta-modules
+# Recalculate module eigengenes
+MEs = moduleEigengenes(datExpr, moduleColors)$eigengenes
+weight = as.data.frame(datTraits$weight_g);
+names(weight) = "weight"
+
+MET = orderMEs(cbind(MEs, weight))
+# Plot the relationships among the eigengenes and the trait
+sizeGrWindow(5, 7.5)
+par(cex = 0.9)
+plotEigengeneNetworks(MET, "", marDendro = c(0, 4, 1, 2), marHeatmap = c(3, 4, 1, 2), cex.lab = 0.8, xLabelsAngle = 90)
+## 分开作图
+# Plot the dendrogram
+sizeGrWindow(6, 6)
+par(cex = 1.0)
+plotEigengeneNetworks(MET, "Eigengene dendrogram", marDendro = c(0, 4, 2, 0),
+                      plotHeatmaps = FALSE)
+# Plot the heatmap matrix (note: this plot will overwrite the dendrogram plot)
+par(cex = 1.0)
+plotEigengeneNetworks(MET, "Eigengene adjacency heatmap", marHeatmap = c(3, 4, 2, 2),
+                      plotDendrograms = FALSE, xLabelsAngle = 90)
+
+### 提取hub gene
+hubs = chooseTopHubInEachModule(datExpr, moduleColors)
+```
