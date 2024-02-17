@@ -89,7 +89,7 @@ plotDendroAndColors(sampleTree2,
                     main = "Sample dendrogram and trait heatmap")
 ```
 
-#### 2
+#### 2 网络构建 
 
 ```R
 library(WGCNA)
@@ -158,5 +158,113 @@ MEs = net$MEs
 geneTree = net$dendrograms[[1]]
 ```
 
+#### 3.模块与性状相连
 
+```R
+nGenes = ncol(datExpr)
+nSamples = nrow(datExpr)
+test <- moduleEigengenes(datExpr, moduleColors)
+### 提取结果
+MEs0 = moduleEigengenes(datExpr, moduleColors)$eigengenes
+### 重新排序，改变的是列的位置 ，没有实际意义，主要用于绘图
+MEs = orderMEs(MEs0)
+#############################################################################
+### 很重要的步骤，很简单的操作
+### 求相关性，datTraits 
+moduleTraitCor = cor(MEs, datTraits, use = "p")
+### 算p值
+moduleTraitPvalue = corPvalueStudent(moduleTraitCor, nSamples)
+
+sizeGrWindow(10, 6)
+# Will display correlations and their p-values
+textMatrix = paste(signif(moduleTraitCor, 2), "\n(",
+                   signif(moduleTraitPvalue, 1), ")", sep = "");
+dim(textMatrix) = dim(moduleTraitCor)
+
+par(mar = c(6, 8.5, 3, 3));
+# Display the correlation values within a heatmap plot
+labeledHeatmap(Matrix = moduleTraitCor,
+               xLabels = names(datTraits),
+               yLabels = names(MEs),
+               ySymbols = names(MEs),
+               colorLabels = FALSE,
+               colors = blueWhiteRed(50),
+               textMatrix = textMatrix,
+               setStdMargins = FALSE,
+               cex.text = 0.5,
+               zlim = c(-1, 1),
+               main = paste("Module-trait relationships"))
+
+# Define variable weight containing the weight column of datTrait
+weight = as.data.frame(datTraits$weight_g)
+names(weight) = "weight"
+# names (colors) of the modules,cong
+## 从第三位开始选取
+modNames = substring(names(MEs), 3)
+
+### 计算基因的相关性
+### module membership MM
+### Gene Significance GS
+geneModuleMembership = as.data.frame(cor(datExpr, MEs, use = "p"))
+MMPvalue = as.data.frame(corPvalueStudent(as.matrix(geneModuleMembership), nSamples))
+
+names(geneModuleMembership) = paste("MM", modNames, sep = "")
+names(MMPvalue) = paste("p.MM", modNames, sep = "")
+
+### 单独一个模块
+geneTraitSignificance = as.data.frame(cor(datExpr, weight, use = "p"))
+GSPvalue = as.data.frame(corPvalueStudent(as.matrix(geneTraitSignificance), nSamples))
+
+names(geneTraitSignificance) = paste("GS.", names(weight), sep = "")
+names(GSPvalue) = paste("p.GS.", names(weight), sep = "");
+
+# 举例子：brown 和weight
+module = "brown"
+column = match(module, modNames)
+table(moduleColors)
+### 提取模块内的基因
+moduleGenes = moduleColors == module
+
+sizeGrWindow(7, 7)
+par(mfrow = c(1, 1))
+### 本质上就是一个散点图
+MM <- abs(geneModuleMembership[moduleGenes, column])
+GS <- abs(geneTraitSignificance[moduleGenes, 1])
+
+verboseScatterplot(MM, GS,
+                   xlab = paste("Module Membership in", module, "module"),
+                   ylab = "Gene significance for body weight",
+                   main = paste("Module membership vs. gene significance\n"),
+                   cex.main = 1.2, cex.lab = 1.2, cex.axis = 1.2, col = module)
+
+
+names(datExpr)[moduleColors == "brown"]
+
+### 模块注释
+annot = data.table::fread(file = "GeneAnnotation.csv", data.table = F)
+
+probes = names(datExpr)
+probes2annot = match(probes, annot$substanceBXH)
+
+# Create the starting data frame
+geneInfo0 = data.frame(substanceBXH = probes,
+                       geneSymbol = annot$gene_symbol[probes2annot],
+                       LocusLinkID = annot$LocusLinkID[probes2annot],
+                       moduleColor = moduleColors,
+                       geneTraitSignificance,
+                       GSPvalue)
+# Order modules by their significance for weight
+### 排序
+modOrder = order(-abs(cor(MEs, weight, use = "p")))
+# Add module membership information in the chosen order
+### 按列操作
+for (mod in 1:ncol(geneModuleMembership)) {
+  oldNames = names(geneInfo0)
+  geneInfo0 = data.frame(geneInfo0, geneModuleMembership[, modOrder[mod]], MMPvalue[, modOrder[mod]])
+  names(geneInfo0) = c(oldNames, paste("MM.", modNames[modOrder[mod]], sep = ""), paste("p.MM.", modNames[modOrder[mod]], sep = ""))
+}
+# Order the genes in the geneInfo variable first by module color, then by geneTraitSignificance
+geneOrder = order(geneInfo0$moduleColor, -abs(geneInfo0$GS.weight))
+geneInfo = geneInfo0[geneOrder,]
+```
 
