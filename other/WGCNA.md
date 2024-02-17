@@ -98,8 +98,6 @@ enableWGCNAThreads()
 ### 软阈值的确定，
 ### 使用函数pickSoftThreshold
 powers = c(c(1:10), seq(from = 12, to = 20, by = 2))
-length(powers)
-### 这个power的长度，决定了最终返回结果的行数目
 
 # Call the network topology analysis function
 ### 模块这里都是作用于表达量数据，没有性状数据的事情
@@ -138,15 +136,13 @@ net = blockwiseModules(datExpr, power = 6,
                        saveTOMs = TRUE,
                        saveTOMFileBase = "femaleMouseTOM",
                        verbose = 3)
-### 返回的net是个列表，Module Epigene 表达数据也在里面
-table(net$colors)
+
 ### 总共找到18个模块
 ### 0表示的是不在模块内的基因
 # open a graphics window
 sizeGrWindow(12, 9)
 ### 标签转为颜色
 mergedColors = labels2colors(net$colors)
-table(mergedColors)
 # Plot the dendrogram and the module colors underneath
 plot(net$dendrograms[[1]])
 plotDendroAndColors(net$dendrograms[[1]],
@@ -161,4 +157,6 @@ moduleColors = labels2colors(net$colors)
 MEs = net$MEs
 geneTree = net$dendrograms[[1]]
 ```
+
+
 
