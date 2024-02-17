@@ -37,9 +37,7 @@ if (!gsg$allOK) {
 }
 
 ### 聚类看异常样本
-test <- mtcars[1:5, 1:4]
 dist(mtcars[1:5, 1:4])
-test <- dist(datExpr0)
 dist(mtcars[1:5, 1:5])
 sampleTree = hclust(dist(datExpr0), method = "average")
 ### 画图
