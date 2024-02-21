@@ -14,8 +14,10 @@ library(scutilsR)
 
 samples <- list.dirs("data/10X_matrix/", full.names = F, recursive = F)
 
+### pblapply 是给apply函数添加进度条
 seu.list <- pbapply::pblapply(samples, function(sn) {
   counts <- Read10X(file.path("data/10X_matrix/", sn))
+  ## replace str "_" 到"-"
   sn <- gsub("_", "-", sn) # 注意"_"在`CreateSeuratObject()`里有特殊的意义
   colnames(counts) <- paste(sn, colnames(counts), sep = "_")
   seu <- CreateSeuratObject(counts = counts)
