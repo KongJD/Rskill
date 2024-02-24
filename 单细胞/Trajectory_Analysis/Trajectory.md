@@ -192,4 +192,115 @@ FeaturePlot(seu, reduction = "tsne", features = "FCER1A")
 seu$celltype[seu$RNA_snn_res.0.8==13] <- "cDC"
 ```
 
-#### 4.
+#### 3.
+
+```R
+library(Seurat)
+library(tidyverse)
+source("R/DimReduction.R")
+
+seu <- qs::qread("tmp/HS_BM_donor1.seurat.annotated.qs")
+
+## data flow:
+## raw count matrix -> normalized matrix -(feature selection: xx HVGs)-> scaled matrix
+## scaled matrix -> PCA embeddings -> (KNN graph) -> SNN(k shared nearest neighbor) graph (cell x cell)
+## cluster(Louvain/Leiden) based on SNN graph
+## if integration (remove batch effect) -> corrected PCA embeddings -> SNN graph
+## visualization: (corrected) PCA embeddings -(distance choice)-> (cell2cell graph) -> tSNE/UMAP
+## trajectory: (corrected) PCA embeddings -(distance choice)-> (cell2cell graph) -> diffusion map(DM)/force directed graph(FDG)
+
+## Why give a so many npcs?
+## be sure that no batch effect in your data.
+seu <- RunPCA(seu, npcs = 300)
+
+## Force directed graph (FDG)
+seu <- RunFDG(seu, reduction = "pca", dims = 1:300)
+
+p1 <- DimPlot(seu, reduction = "fr", group.by = "celltype", label = T) + ggsci::scale_color_d3()
+p2 <- DimPlot(seu, reduction = "tsne", group.by = "celltype", label = T) + ggsci::scale_color_d3()
+p3 <- DimPlot(seu, reduction = "umap", group.by = "celltype", label = T) + ggsci::scale_color_d3()
+p1 + p2 + p3
+
+DimPlot(seu, reduction = "fr", group.by = "celltype", label = T) + ggsci::scale_color_d3()
+DimPlot(seu, reduction = "fr", group.by = "Phase", label = T) + ggsci::scale_color_d3()
+FeaturePlot(seu, reduction = "fr", features = c("CD34", "MPO", "IRF8", "CD79A", "GATA1", "HBB"), ncol = 3)
+
+## Try different dimensions
+# p.list <- pbapply::pblapply(c(10,20,30,50,100,150,200,300), function(ndim) {
+#   seu <- RunFDG(seu, reduction = "pca", dims = 1:ndim)
+#   p <- DimPlot(seu, reduction = "fr", group.by = "celltype", label = T) + ggsci::scale_color_d3()
+#   p <- p + ggtitle(glue::glue("ndim = {ndim}"))
+#   return(p)
+# })
+# cowplot::plot_grid(plotlist = p.list, nrow = 2)
+
+## Diffusion map
+seu <- RunDiffusion(seu, reduction = "pca", dims = 1:300, verbose = T)
+DimPlot(seu, reduction = "diffusion.map", dims = 3:4, group.by = "celltype", label = T) + ggsci::scale_color_d3()
+
+## Run tSNE/UMAP on DCs
+## 对于发育过程的数据，调大`perplexity`有惊喜
+seu <- RunTSNE(seu, reduction = "diffusion.map", dims = 1:10, perplexity = 150,
+               reduction.name = "dm.tsne", reduction.key = "DMtSNE_")
+## 对于发育过程的数据，调大`n.neighbors`有惊喜
+seu <- RunUMAP(seu, reduction = "diffusion.map", dims = 1:10, n.neighbors = 100,
+               reduction.name = "dm.umap", reduction.key = "DMUMAP_")
+
+p1 <- DimPlot(seu, reduction = "tsne", group.by = "celltype", label = T) + ggsci::scale_color_d3()
+p2 <- DimPlot(seu, reduction = "dm.tsne", group.by = "celltype", label = T) + ggsci::scale_color_d3()
+p1 + p2
+
+p1 <- DimPlot(seu, reduction = "umap", group.by = "celltype", label = T) + ggsci::scale_color_d3()
+p2 <- DimPlot(seu, reduction = "dm.umap", group.by = "celltype", label = T) + ggsci::scale_color_d3()
+p1 + p2
+
+resolutions <- c(0.1, 0.2, 0.4, 0.6, 0.8, 1)
+DimPlot(seu, reduction = "fr", group.by = paste0("RNA_snn_res.", resolutions), ncol = 3, label = T) & NoLegend()
+
+#### save data ####
+qs::qsave(seu, "tmp/HS_BM_donor1.seurat.trajectory.qs")
+## 注意`sceasy::convertFormat`默认只保留Seurat对象中的`data`矩阵(也就是log1p normalized matrix).
+## 如何想要改变这一行为，可以使用`main_layer`参数，例如
+sceasy::convertFormat(seu, from = "seurat", to = "anndata", main_layer = "data", outFile = "tmp/04.HS_BM_donor1.log1pnorm.h5ad")
+sceasy::convertFormat(seu, from = "seurat", to = "anndata", main_layer = "counts", outFile = "tmp/04.HS_BM_donor1.counts.h5ad")
+seu2 <- seu[rownames(seu[["RNA"]]@scale.data), ]
+sceasy::convertFormat(seu2, from = "seurat", to = "anndata", main_layer = "scale.data", outFile = "tmp/04.HS_BM_donor1.scaled.h5ad")
+
+#### Reference ####
+# Force directed graphs compared to other dimensionality reduction methods for scRNA-seq
+# https://www.biostars.org/p/415885/
+
+
+#### MISC ####
+seu <- qs::qread("tmp/HS_BM_donor1.seurat.trajectory.qs")
+
+root.cells <- CellSelector(FeaturePlot(seu, reduction = "fr", features = "CD34"))
+root.cells <- "HS-BM-P1-cells-1_GTACTCCGTCCAAGTT-1"
+DimPlot(seu, reduction = "fr", cells.highlight = root.cells)
+DimPlot(seu, reduction = "dm.tsne", cells.highlight = root.cells)
+DimPlot(seu, reduction = "tsne", cells.highlight = root.cells)
+
+terminal.p <- c(
+  "HS-BM-P1-cells-1_CGTCACTTCAGGCGAA-1",
+  "HS-BM-P1-cells-1_CGTCACTTCGCTTAGA-1",
+  "HS-BM-P1-cells-1_CTTACCGCATCTACGA-1",
+  "HS-BM-P1-cells-2_ACAGCTAGTAAGGATT-1"
+)
+DimPlot(seu, reduction = "fr", cells.highlight = terminal.p)
+
+terminal.cells <- c(
+  "pDC" = "HS-BM-P1-cells-1_CGTCACTTCGCTTAGA-1",
+  "cDC" = "HS-BM-P1-cells-2_CCTTCCCCAGGGATTG-1",
+  "CLP" = "HS-BM-P1-cells-1_CTTACCGCATCTACGA-1",
+  "Ery" = "HS-BM-P1-cells-2_ACAGCTAGTAAGGATT-1",
+  "Mega" = "HS-BM-P1-cells-1_CGTCACTTCAGGCGAA-1",
+  "Mono" = "HS-BM-P1-cells-1_TTAGTTCTCGGACAAG-1"
+)
+# terminal.cells = "HS-BM-P1-cells-1_CTTACCGCATCTACGA-1"
+DimPlot(seu, reduction = "fr", cells.highlight = terminal.cells)
+# DimPlot(seu, reduction = "dm.tsne", cells.highlight = terminal.cells)
+# DimPlot(seu, reduction = "tsne", cells.highlight = terminal.cells)
+
+CellSelector(FeaturePlot(seu, reduction = "fr", features = "IRF8"))
+CellSelector(DimPlot(seu, reduction = "fr", group.by = "celltype"))
+```
