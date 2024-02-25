@@ -192,7 +192,7 @@ FeaturePlot(seu, reduction = "tsne", features = "FCER1A")
 seu$celltype[seu$RNA_snn_res.0.8==13] <- "cDC"
 ```
 
-#### 3.
+#### 3.轨迹展示
 
 ```R
 library(Seurat)
@@ -303,4 +303,220 @@ DimPlot(seu, reduction = "fr", cells.highlight = terminal.cells)
 
 CellSelector(FeaturePlot(seu, reduction = "fr", features = "IRF8"))
 CellSelector(DimPlot(seu, reduction = "fr", group.by = "celltype"))
+```
+
+#### 4. 定义路径
+
+```R
+#### Load packages ####
+library(Seurat)
+library(tidyverse)
+library(igraph)
+setwd(here::here())
+
+#' 定义lineage
+
+#### Load data ####
+seu <- qs::qread("tmp/HS_BM_donor1.seurat.trajectory.qs")
+seu <- subset(seu, celltype != "Mast cell")
+
+## Load the palantir results
+pr.res <- read.table("tmp/palantir_results.csv", sep = ",", header = T, row.names = 1)
+
+## Write to Seurat object
+seu@meta.data <- pr.res
+
+DimPlot(seu, reduction = "fr", group.by = "seurat_clusters", label = T)
+
+#### Abstract Lineage: 最小生成树算法(Monocle V1) ####
+
+## 过度聚类:
+# k.clusters <- kmeans(x = Embeddings(seu, reduction = "diffusion.map")[,1:10], centers = 100)
+# seu$seurat_clusters <- k.clusters$cluster
+seu <- FindNeighbors(seu, reduction = "fr", dims = 1:2, k.param = 20)
+seu <- FindClusters(seu, resolution = 8)
+
+DimPlot(seu, reduction = "fr", group.by = "seurat_clusters", label = T) + NoLegend()
+
+## the median cells for each cluster
+data.use <- FetchData(seu, vars = c("seurat_clusters", "FDG_1", "FDG_2"))
+data.use <- data.use %>%
+  mutate(cellID = rownames(.)) %>%
+  group_by(seurat_clusters) %>%
+  mutate(x = abs(FDG_1 - median(FDG_1)),
+         y = abs(FDG_2 - median(FDG_2)),
+         d = x + y) %>%
+  arrange(seurat_clusters, d) %>%
+  slice_head(n=1)
+
+DimPlot(seu, reduction = "fr", cells.highlight = data.use$cellID)
+
+
+##
+cell.embeddings <- Embeddings(seu, reduction = "fr")[data.use$cellID, ]
+cell.pair.dis <- dist(cell.embeddings)
+g <- igraph::graph_from_adjacency_matrix(adjmatrix = as.matrix(cell.pair.dis),
+                                         mode = "undirected",
+                                         weighted = TRUE,
+                                         add.colnames = "cellID")
+
+nodes2cellID <- get.vertex.attribute(g)$cellID
+cellID2nodes <- setNames(1:length(nodes2cellID), nodes2cellID)
+
+## 最小生成树
+mst <- igraph::minimum.spanning.tree(g)
+edges <- igraph::ends(mst, igraph::E(mst))
+## Other spanning tree
+# cell.pair.dis <- dist(cell.embeddings)
+# dis.threshold <- 1
+# cell.pair.dis <- as.matrix(cell.pair.dis)
+# cell.pair.dis[cell.pair.dis > dis.threshold] <- 0
+# g2 <- igraph::graph_from_adjacency_matrix(adjmatrix = cell.pair.dis,
+#                                           mode = "undirected",
+#                                           weighted = TRUE,
+#                                           add.colnames = "cellID")
+# edges <- igraph::ends(g2, igraph::E(g2))
+
+edges <- as.data.frame(edges)
+edges$from <- nodes2cellID[edges$V1]
+edges$to <- nodes2cellID[edges$V2]
+edges$from.x <- cell.embeddings[edges$from, 1]
+edges$from.y <- cell.embeddings[edges$from, 2]
+edges$to.x <- cell.embeddings[edges$to, 1]
+edges$to.y <- cell.embeddings[edges$to, 2]
+
+DimPlot(seu, reduction = "fr", cells.highlight = data.use$cellID) +
+  geom_segment(inherit.aes = F, data = edges,
+               mapping = aes(x = from.x, y = from.y, xend = to.x, yend = to.y), alpha=1)
+
+
+
+#### Lineage choice: 最短路径算法 ####
+root.cells <- "HS-BM-P1-cells-1_GTACTCCGTCCAAGTT-1"
+terminal.cells <- c(
+  "pDC" = "HS-BM-P1-cells-1_CGTCACTTCGCTTAGA-1",
+  "cDC" = "HS-BM-P1-cells-2_CCTTCCCCAGGGATTG-1",
+  "CLP" = "HS-BM-P1-cells-1_CTTACCGCATCTACGA-1",
+  "Ery" = "HS-BM-P1-cells-2_ACAGCTAGTAAGGATT-1",
+  "Mega" = "HS-BM-P1-cells-1_CGTCACTTCAGGCGAA-1",
+  "Mono" = "HS-BM-P1-cells-1_TTAGTTCTCGGACAAG-1"
+)
+
+nodes2cluster <- seu$seurat_clusters[nodes2cellID]
+cluster2nodes <- setNames(names(nodes2cluster), nodes2cluster)
+
+terminal.nodes <- cellID2nodes[cluster2nodes[seu$seurat_clusters[terminal.cells]]]
+names(terminal.nodes) <- names(terminal.cells)
+
+root.nodes <- cellID2nodes[cluster2nodes[seu$seurat_clusters[root.cells]]]
+
+result <- igraph::shortest_paths(mst, from = root.nodes, to = terminal.nodes) ## modify me
+lineages <- result$vpath
+names(lineages) <- names(terminal.nodes)
+
+DimPlot(seu, reduction = "fr", cells.highlight = nodes2cellID[lineages$Mega])
+
+## cellID2lineage
+seu$lineage.Mega <- seu$seurat_clusters %in% nodes2cluster[lineages$Mega]
+DimPlot(seu, reduction = "fr", group.by = "lineage.Mega")
+
+## for loop
+for (i in seq_along(lineages)) {
+  ln <- names(lineages)[i]
+  meta.name <- glue::glue("lineage.{ln}")
+  seu[[meta.name]] <- seu$seurat_clusters %in% nodes2cluster[lineages[[i]]]
+}
+
+DimPlot(seu, reduction = "fr", group.by = paste0("lineage.", names(lineages)), ncol = 3) &
+  scale_color_manual(values = c("grey", "red")) &
+  NoLegend()
+
+
+#### Fine tune cells along the lineage: Principle curve ####
+source("R/lineage.R")
+
+## fit the principle curve
+p.curve.Mega <- fit_pc(seu, lineage = "lineage.Mega", reduction = "fr", sample.n = 100) # 4
+p.curve.pDC <- fit_pc(seu, lineage = "lineage.pDC", reduction = "fr") # 7
+p.curve.cDC <- fit_pc(seu, lineage = "lineage.cDC", reduction = "fr") # 7
+p.curve.CLP <- fit_pc(seu, lineage = "lineage.CLP", reduction = "fr", sample.n = 100) # 5
+p.curve.Ery <- fit_pc(seu, lineage = "lineage.Ery", reduction = "fr") # 5
+p.curve.Mono <- fit_pc(seu, lineage = "lineage.Mono", reduction = "fr") # 2
+
+
+## plot on FR
+data.point <- FetchData(seu, vars = c(paste0("FDG_", 1:2), "celltype"))
+data.path.Mega <- get_path(p.curve.Mega, df=5)
+data.arrow.Mega <- get_arrow(data.path.Mega, reverse = T)
+
+data.path.pDC <- get_path(p.curve.pDC, df=7)
+data.arrow.pDC <- get_arrow(data.path.pDC, reverse = F)
+
+data.path.cDC <- get_path(p.curve.cDC, df=7)
+data.arrow.cDC <- get_arrow(data.path.cDC, reverse = F)
+
+data.path.CLP <- get_path(p.curve.CLP, df=5)
+data.arrow.CLP <- get_arrow(data.path.CLP, reverse = F)
+
+data.path.Ery <- get_path(p.curve.Ery, df=5)
+data.arrow.Ery <- get_arrow(data.path.Ery, reverse = T)
+
+data.path.Mono <- get_path(p.curve.Mono, df=2)
+data.arrow.Mono <- get_arrow(data.path.Mono, reverse = T)
+
+ggplot() +
+  geom_point(data = data.point, aes(FDG_1, FDG_2, color = celltype), size = .2) +
+
+  geom_path(data = data.path.Mega, aes(X,Y), size = .8) +
+  geom_segment(data = data.arrow.Mega, aes(x = X, xend = Xend, y = Y, yend = Yend),
+               arrow = arrow(length = unit(0.1, "in"), angle = 30, type = "closed"), size = .5) +
+
+  geom_path(data = data.path.pDC, aes(X,Y), size = .8) +
+  geom_segment(data = data.arrow.pDC, aes(x = X, xend = Xend, y = Y, yend = Yend),
+               arrow = arrow(length = unit(0.1, "in"), angle = 30, type = "closed"), size = .5) +
+
+  geom_path(data = data.path.cDC, aes(X,Y), size = .8) +
+  geom_segment(data = data.arrow.cDC, aes(x = X, xend = Xend, y = Y, yend = Yend),
+               arrow = arrow(length = unit(0.1, "in"), angle = 30, type = "closed"), size = .5) +
+
+  geom_path(data = data.path.CLP, aes(X,Y), size = .8) +
+  geom_segment(data = data.arrow.CLP, aes(x = X, xend = Xend, y = Y, yend = Yend),
+               arrow = arrow(length = unit(0.1, "in"), angle = 30, type = "closed"), size = .5) +
+
+  geom_path(data = data.path.Ery, aes(X,Y), size = .8) +
+  geom_segment(data = data.arrow.Ery, aes(x = X, xend = Xend, y = Y, yend = Yend),
+               arrow = arrow(length = unit(0.1, "in"), angle = 30, type = "closed"), size = .5) +
+
+  geom_path(data = data.path.Mono, aes(X,Y), size = .8) +
+  geom_segment(data = data.arrow.Mono, aes(x = X, xend = Xend, y = Y, yend = Yend),
+               arrow = arrow(length = unit(0.1, "in"), angle = 30, type = "closed"), size = .5) +
+
+  theme_classic(base_size = 15)
+
+
+## cells around the curve
+seu <- cells_on_lineage(seu, lineage = "Mega", reduction = "fr", data.path = data.path.Mega, delta = 0.1)
+DimPlot(seu, reduction = "fr", group.by = "lineage.finetune.Mega") +
+  scale_color_manual(values = c("grey", "red"))
+
+seu <- cells_on_lineage(seu, lineage = "pDC", reduction = "fr", data.path = data.path.pDC)
+seu <- cells_on_lineage(seu, lineage = "cDC", reduction = "fr", data.path = data.path.cDC)
+seu <- cells_on_lineage(seu, lineage = "CLP", reduction = "fr", data.path = data.path.CLP)
+seu <- cells_on_lineage(seu, lineage = "Ery", reduction = "fr", data.path = data.path.Ery)
+seu <- cells_on_lineage(seu, lineage = "Mono", reduction = "fr", data.path = data.path.Mono)
+
+## 结合lineage probability信息
+seu$lineage.finetune.Mega <- seu$lineage.finetune.Mega | seu$Mega > 0.5
+seu$lineage.finetune.cDC <- seu$lineage.finetune.cDC | seu$cDC > 0.5
+seu$lineage.finetune.pDC <- seu$lineage.finetune.pDC | seu$pDC > 0.5
+seu$lineage.finetune.Ery <- seu$lineage.finetune.Ery | seu$Ery > 0.5
+seu$lineage.finetune.CLP <- seu$lineage.finetune.CLP | seu$CLP > 0.5
+seu$lineage.finetune.Mono <- seu$lineage.finetune.Mono | seu$Mono > 0.5
+
+DimPlot(seu, reduction = "fr", group.by = paste0("lineage.finetune.", names(terminal.cells)), cols = 3) &
+  scale_color_manual(values = c("grey", "red")) &
+  NoLegend()
+
+qs::qsave(seu, "tmp/HS_BM_donor1.seurat.lineage.qs")
+
 ```
