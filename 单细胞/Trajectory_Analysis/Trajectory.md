@@ -148,7 +148,7 @@ table(all.markers.df$cluster)
 
 top3.markers <- all.markers.df %>%
   group_by(cluster) %>%
-  slice_head(n=3) %>%
+  slice_head(n = 3) %>%
   select(Gene.name.uniq)
 
 DotPlot(seu, features = unique(top3.markers$Gene.name.uniq)) + RotatedAxis()
@@ -189,7 +189,7 @@ FeaturePlot(seu, reduction = "tsne", features = "SCT")
 # cDC
 FeaturePlot(seu, reduction = "tsne", features = "FCER1A")
 
-seu$celltype[seu$RNA_snn_res.0.8==13] <- "cDC"
+seu$celltype[seu$RNA_snn_res.0.8 == 13] <- "cDC"
 ```
 
 #### 3.轨迹展示
@@ -263,7 +263,7 @@ qs::qsave(seu, "tmp/HS_BM_donor1.seurat.trajectory.qs")
 ## 如何想要改变这一行为，可以使用`main_layer`参数，例如
 sceasy::convertFormat(seu, from = "seurat", to = "anndata", main_layer = "data", outFile = "tmp/04.HS_BM_donor1.log1pnorm.h5ad")
 sceasy::convertFormat(seu, from = "seurat", to = "anndata", main_layer = "counts", outFile = "tmp/04.HS_BM_donor1.counts.h5ad")
-seu2 <- seu[rownames(seu[["RNA"]]@scale.data), ]
+seu2 <- seu[rownames(seu[["RNA"]]@scale.data),]
 sceasy::convertFormat(seu2, from = "seurat", to = "anndata", main_layer = "scale.data", outFile = "tmp/04.HS_BM_donor1.scaled.h5ad")
 
 #### Reference ####
@@ -347,13 +347,13 @@ data.use <- data.use %>%
          y = abs(FDG_2 - median(FDG_2)),
          d = x + y) %>%
   arrange(seurat_clusters, d) %>%
-  slice_head(n=1)
+  slice_head(n = 1)
 
 DimPlot(seu, reduction = "fr", cells.highlight = data.use$cellID)
 
 
 ##
-cell.embeddings <- Embeddings(seu, reduction = "fr")[data.use$cellID, ]
+cell.embeddings <- Embeddings(seu, reduction = "fr")[data.use$cellID,]
 cell.pair.dis <- dist(cell.embeddings)
 g <- igraph::graph_from_adjacency_matrix(adjmatrix = as.matrix(cell.pair.dis),
                                          mode = "undirected",
@@ -387,8 +387,7 @@ edges$to.y <- cell.embeddings[edges$to, 2]
 
 DimPlot(seu, reduction = "fr", cells.highlight = data.use$cellID) +
   geom_segment(inherit.aes = F, data = edges,
-               mapping = aes(x = from.x, y = from.y, xend = to.x, yend = to.y), alpha=1)
-
+               mapping = aes(x = from.x, y = from.y, xend = to.x, yend = to.y), alpha = 1)
 
 
 #### Lineage choice: 最短路径算法 ####
@@ -446,48 +445,48 @@ p.curve.Mono <- fit_pc(seu, lineage = "lineage.Mono", reduction = "fr") # 2
 
 ## plot on FR
 data.point <- FetchData(seu, vars = c(paste0("FDG_", 1:2), "celltype"))
-data.path.Mega <- get_path(p.curve.Mega, df=5)
+data.path.Mega <- get_path(p.curve.Mega, df = 5)
 data.arrow.Mega <- get_arrow(data.path.Mega, reverse = T)
 
-data.path.pDC <- get_path(p.curve.pDC, df=7)
+data.path.pDC <- get_path(p.curve.pDC, df = 7)
 data.arrow.pDC <- get_arrow(data.path.pDC, reverse = F)
 
-data.path.cDC <- get_path(p.curve.cDC, df=7)
+data.path.cDC <- get_path(p.curve.cDC, df = 7)
 data.arrow.cDC <- get_arrow(data.path.cDC, reverse = F)
 
-data.path.CLP <- get_path(p.curve.CLP, df=5)
+data.path.CLP <- get_path(p.curve.CLP, df = 5)
 data.arrow.CLP <- get_arrow(data.path.CLP, reverse = F)
 
-data.path.Ery <- get_path(p.curve.Ery, df=5)
+data.path.Ery <- get_path(p.curve.Ery, df = 5)
 data.arrow.Ery <- get_arrow(data.path.Ery, reverse = T)
 
-data.path.Mono <- get_path(p.curve.Mono, df=2)
+data.path.Mono <- get_path(p.curve.Mono, df = 2)
 data.arrow.Mono <- get_arrow(data.path.Mono, reverse = T)
 
 ggplot() +
   geom_point(data = data.point, aes(FDG_1, FDG_2, color = celltype), size = .2) +
 
-  geom_path(data = data.path.Mega, aes(X,Y), size = .8) +
+  geom_path(data = data.path.Mega, aes(X, Y), size = .8) +
   geom_segment(data = data.arrow.Mega, aes(x = X, xend = Xend, y = Y, yend = Yend),
                arrow = arrow(length = unit(0.1, "in"), angle = 30, type = "closed"), size = .5) +
 
-  geom_path(data = data.path.pDC, aes(X,Y), size = .8) +
+  geom_path(data = data.path.pDC, aes(X, Y), size = .8) +
   geom_segment(data = data.arrow.pDC, aes(x = X, xend = Xend, y = Y, yend = Yend),
                arrow = arrow(length = unit(0.1, "in"), angle = 30, type = "closed"), size = .5) +
 
-  geom_path(data = data.path.cDC, aes(X,Y), size = .8) +
+  geom_path(data = data.path.cDC, aes(X, Y), size = .8) +
   geom_segment(data = data.arrow.cDC, aes(x = X, xend = Xend, y = Y, yend = Yend),
                arrow = arrow(length = unit(0.1, "in"), angle = 30, type = "closed"), size = .5) +
 
-  geom_path(data = data.path.CLP, aes(X,Y), size = .8) +
+  geom_path(data = data.path.CLP, aes(X, Y), size = .8) +
   geom_segment(data = data.arrow.CLP, aes(x = X, xend = Xend, y = Y, yend = Yend),
                arrow = arrow(length = unit(0.1, "in"), angle = 30, type = "closed"), size = .5) +
 
-  geom_path(data = data.path.Ery, aes(X,Y), size = .8) +
+  geom_path(data = data.path.Ery, aes(X, Y), size = .8) +
   geom_segment(data = data.arrow.Ery, aes(x = X, xend = Xend, y = Y, yend = Yend),
                arrow = arrow(length = unit(0.1, "in"), angle = 30, type = "closed"), size = .5) +
 
-  geom_path(data = data.path.Mono, aes(X,Y), size = .8) +
+  geom_path(data = data.path.Mono, aes(X, Y), size = .8) +
   geom_segment(data = data.arrow.Mono, aes(x = X, xend = Xend, y = Y, yend = Yend),
                arrow = arrow(length = unit(0.1, "in"), angle = 30, type = "closed"), size = .5) +
 
@@ -584,7 +583,7 @@ data.DP <- data.use
 ## Key molecular events
 source("R/compute_module_score.R")
 pathway <- readLines("resource/h.all.v2022.1.Hs.symbols.gmt")
-gene.list <- lapply(strsplit(pathway, split = "\t"), function(xx) xx[-c(1,2)])
+gene.list <- lapply(strsplit(pathway, split = "\t"), function(xx) xx[-c(1, 2)])
 names(gene.list) <- sapply(strsplit(pathway, split = "\t"), function(xx) xx[1])
 
 ## 17s
@@ -606,7 +605,7 @@ cor.test <- cor(data.use[, dvars], data.use$DP)
 
 cor.res.df <- data.frame(
   term = rownames(cor.test),
-  corr = cor.test[,1]
+  corr = cor.test[, 1]
 )
 
 cor.res.df <- arrange(cor.res.df, desc(corr))
@@ -617,11 +616,199 @@ ggplot(cor.res.df, aes(rank, corr)) +
 
 ggplot(data.use, aes(pseudotime, `Oxidative.phosphorylation`)) +
   geom_point(size = .5, aes(color = celltype)) +
-  geom_point(inherit.aes = F, data = data.DP, aes(pseudotime, diff/3), size = .2, color = "red") +
+  geom_point(inherit.aes = F, data = data.DP, aes(pseudotime, diff / 3), size = .2, color = "red") +
   geom_smooth() +
   # scale_color_viridis_c() +
   geom_vline(xintercept = c(0.069, 0.156)) +
   theme_classic(base_size = 15)
 
 ## Metabolism remodel (有氧呼吸 上调)
+```
+
+#### 6.DEGS within lineage
+
+```R
+library(Seurat)
+library(tidyverse)
+library(mgcv)
+
+setwd(here::here())
+
+#### Load data ####
+seu <- qs::qread("tmp/HS_BM_donor1.seurat.lineage.qs")
+
+## Imputation by `MAGIC`(https://github.com/KrishnaswamyLab/MAGIC)
+expr.in.cells <- Matrix::rowSums(seu[["RNA"]]@counts > 0)
+select.features <- names(expr.in.cells[expr.in.cells >= 50])
+seu.magic <- Rmagic::magic(seu, genes = select.features, seed = 1024, npcs = 30)
+DefaultAssay(seu.magic) <- "MAGIC_RNA"
+
+## Ery lineage
+seu.Ery <- subset(seu.magic, lineage.finetune.Ery)
+
+## check the results
+DefaultAssay(seu.Ery) <- "RNA"
+p1 <- FeaturePlot(seu.Ery, reduction = "fr", features = "HBB")
+DefaultAssay(seu.Ery) <- "MAGIC_RNA"
+p2 <- FeaturePlot(seu.Ery, reduction = "fr", features = "HBB")
+(p1 | p2) & scale_color_viridis_c()
+
+### DP
+data.use <- FetchData(seu.Ery, vars = c("DP", "pseudotime", "celltype"))
+data.use <- arrange(data.use, pseudotime)
+
+ggplot(data.use, aes(pseudotime, DP, color = celltype, group = celltype)) +
+  geom_point(size = .5) +
+  ggsci::scale_color_d3() +
+  guides(color = guide_legend(override.aes = list(size = 4))) +
+  theme_classic(base_size = 15)
+
+### fit the curve 线性可加模型(LAM)
+model <- gam(DP ~ s(pseudotime), data = data.use) ## via `mgcv` package
+data.use$fitted <- model$fitted.values
+
+## 一阶微分:找到DP变化最大的位置
+data.use$diff <- abs(c(NA, diff(data.use$fitted) / diff(data.use$pseudotime)))
+## Max-min标准化到0-1区间
+data.use$diff <- (data.use$diff - min(data.use$diff, na.rm = T)) / (max(data.use$diff, na.rm = T) - min(data.use$diff, na.rm = T))
+
+## 二阶微分：确定极值点
+data.use$diff.diff <- abs(c(NA, diff(data.use$diff) / diff(data.use$pseudotime)))
+
+ggplot(data.use, aes(pseudotime, DP, color = celltype, group = celltype)) +
+  geom_point(size = .5) +
+  geom_vline(xintercept = c(0.152, 0.382)) +
+  geom_point(aes(pseudotime, fitted), color = "red", size = .1) +
+  geom_point(aes(pseudotime, diff), color = "blue", size = .1) +
+  ggsci::scale_color_d3() +
+  guides(color = guide_legend(override.aes = list(size = 4))) +
+  theme_classic(base_size = 15)
+
+data.DP <- data.use
+
+### related genes
+data.use <- FetchData(seu.Ery, vars = c(rownames(seu.Ery), "pseudotime", "Ery"))
+cor.test <- cor(data.use[, 1:(length(data.use) - 2)], data.use$Ery)
+
+cor.res.df <- data.frame(
+  term = rownames(cor.test),
+  corr = cor.test[, 1]
+)
+
+FeaturePlot(seu, reduction = "fr", features = c("Ery", "KLF1", "GATA1", "MPST"), ncol = 2) &
+  scale_color_viridis_c()
+
+FeaturePlot(seu.magic, reduction = "fr", features = c("Ery", "KLF1", "GATA1", "MPST"), ncol = 2) &
+  scale_color_viridis_c()
+
+## LMM model
+seu.Ery$pseudotime.bin <- infotheo::discretize(seu.Ery$pseudotime, disc = "equalwidth", 100)[[1]]
+expr.in.cells <- Matrix::rowSums(seu.Ery[["RNA"]]@counts > 0)
+select.features <- names(expr.in.cells[expr.in.cells >= 50])
+imputed.data <- FetchData(seu.Ery, vars = select.features)
+vd.vars <- c("pseudotime.bin")
+meta.data <- seu.Ery@meta.data[, vd.vars, drop = F]
+
+dim(imputed.data) ## 10750 genes
+
+## 48s
+system.time({
+  vd.res <- Gadest::VarDecompose(data = imputed.data, meta.data = meta.data, vd.vars = vd.vars, cores = 20)
+})
+
+vd.res$Ery.corr <- cor.res.df[vd.res$gene, "corr"]
+
+ggplot(vd.res, aes(pseudotime.bin, Ery.corr)) +
+  geom_point(size = .1)
+
+## 感受一下方差分解的好处
+head(subset(vd.res, abs(Ery.corr) < 0.1 & pseudotime.bin > 0.75))
+
+FeaturePlot(seu.magic, reduction = "fr", features = c("Ery", "THRB", "RGS18", "GATA2"), ncol = 2) &
+  scale_color_viridis_c()
+
+##
+all.DEGs <- subset(vd.res, pseudotime.bin > 0.5)
+dim(all.DEGs)
+
+## gene cluster:
+
+## visualization
+data.use <- FetchData(seu.Ery, vars = c("pseudotime", "DP", "KLF1", "GATA1", "celltype"))
+
+ggplot(data.use, aes(pseudotime, GATA1)) +
+  geom_point(aes(color = celltype), size = 1, alpha = .5) +
+  geom_vline(xintercept = c(0.152, 0.382)) +
+  geom_smooth() +
+  geom_point(inherit.aes = F, data = data.DP, aes(pseudotime, fitted), size = .1, color = "red") +
+  geom_point(inherit.aes = F, data = data.DP, aes(pseudotime, diff), size = .1, color = "orange") +
+  theme_classic(base_size = 15)
+
+```
+
+#### 7.DEGS across lineage
+
+```R
+library(Seurat)
+library(tidyverse)
+library(patchwork)
+
+setwd(here::here())
+
+#### Load data ####
+seu <- qs::qread("tmp/HS_BM_donor1.seurat.lineage.qs")
+
+## Imputation by `MAGIC`(https://github.com/KrishnaswamyLab/MAGIC)
+expr.in.cells <- Matrix::rowSums(seu[["RNA"]]@counts > 0)
+select.features <- names(expr.in.cells[expr.in.cells >= 50])
+seu.magic <- Rmagic::magic(seu, genes = select.features, seed = 1024, npcs = 30)
+DefaultAssay(seu.magic) <- "MAGIC_RNA"
+
+lineages <- c("Mono", "CLP")
+p1 <- FeaturePlot(seu, reduction = "fr", features = c(lineages), ncol = 3) &
+  scale_color_viridis_c()
+
+p2 <- DimPlot(seu, reduction = "fr", group.by = paste0("lineage.finetune.", lineages), ncol = 3) &
+  scale_color_manual(values = c("grey", "red")) &
+  NoLegend()
+
+p1 / p2
+
+
+seu2 <- subset(seu, lineage.finetune.Mono | lineage.finetune.CLP)
+seu2 <- subset(seu2, pseudotime <= 0.42)
+VlnPlot(seu2, group.by = "celltype", features = "pseudotime") +
+  geom_hline(yintercept = 0.42)
+DimPlot(seu2, reduction = "fr", group.by = "celltype")
+
+## LMM model
+seu2$pseudotime.bin <- infotheo::discretize(seu2$pseudotime, disc = "equalwidth", 100)[[1]]
+seu2$is.Mono <- seu2$Mono > 0.5
+seu2$is.CLP <- seu2$CLP > 0.5
+
+DimPlot(seu2, reduction = "fr", group.by = c("is.Mono", "is.CLP"), ncol = 2)
+
+expr.in.cells <- Matrix::rowSums(seu2[["RNA"]]@counts > 0)
+select.features <- names(expr.in.cells[expr.in.cells >= 50])
+imputed.data <- FetchData(seu2, vars = select.features)
+vd.vars <- c("pseudotime.bin", "is.Mono", "is.CLP")
+meta.data <- seu2@meta.data[, vd.vars, drop = F]
+
+dim(imputed.data) ## 12131 genes
+
+## 1.5 min
+system.time({
+  vd.res <- Gadest::VarDecompose(data = imputed.data, meta.data = meta.data, vd.vars = vd.vars, cores = 20)
+})
+
+ggplot(vd.res, aes(is.Mono, is.CLP)) +
+  geom_point(size = .2) +
+  theme_bw(base_size = 15)
+
+top5.mono <- head(arrange(vd.res, desc(is.Mono))$gene)
+top5.CLP <- head(arrange(vd.res, desc(is.CLP))$gene)
+top5.seudo <- head(arrange(vd.res, desc(pseudotime.bin))$gene)
+
+FeaturePlot(seu.magic, reduction = "fr", features = c(top5.mono, top5.CLP), ncol = 6) &
+  scale_color_viridis_c()
 ```
