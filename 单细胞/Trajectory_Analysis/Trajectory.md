@@ -518,5 +518,110 @@ DimPlot(seu, reduction = "fr", group.by = paste0("lineage.finetune.", names(term
   NoLegend()
 
 qs::qsave(seu, "tmp/HS_BM_donor1.seurat.lineage.qs")
+```
 
+#### 5.differential potential
+
+```R
+library(Seurat)
+library(tidyverse)
+library(splines)
+library(mgcv)
+
+seu <- qs::qread("tmp/HS_BM_donor1.seurat.lineage.qs")
+
+## branch plot
+data.use <- FetchData(seu, vars = c("pseudotime", "celltype", "Ery"))
+ggplot(data.use, aes(pseudotime, Ery, color = celltype)) +
+  geom_point(size = .3) +
+  guides(color = guide_legend(override.aes = list(size = 5))) +
+  ggsci::scale_color_d3()
+
+
+## Key concept: DP (differential potential)
+data.use <- FetchData(seu, vars = c("DP", "pseudotime", "celltype"))
+
+ggplot(data.use, aes(pseudotime, DP, color = celltype, group = celltype)) +
+  geom_point(size = .5) +
+  ggsci::scale_color_d3() +
+  guides(color = guide_legend(override.aes = list(size = 4))) +
+  theme_classic(base_size = 15)
+
+## Early differentiation
+seu.early <- subset(seu, celltype %in% c("HSC", "precursor"))
+data.use <- FetchData(seu.early, vars = c("DP", "pseudotime", "celltype"))
+data.use <- arrange(data.use, pseudotime)
+
+ggplot(data.use, aes(pseudotime, DP, color = celltype, group = celltype)) +
+  geom_point(size = .5) +
+  ggsci::scale_color_d3() +
+  guides(color = guide_legend(override.aes = list(size = 4))) +
+  theme_classic(base_size = 15)
+
+### fit the curve 线性可加模型(LAM)
+model <- gam(DP ~ s(pseudotime), data = data.use) ## via `mgcv` package
+data.use$fitted <- model$fitted.values
+
+## 一阶微分:找到DP变化最大的位置
+data.use$diff <- abs(c(NA, diff(data.use$fitted) / diff(data.use$pseudotime)))
+## Max-min标准化到0-1区间
+data.use$diff <- (data.use$diff - min(data.use$diff, na.rm = T)) / (max(data.use$diff, na.rm = T) - min(data.use$diff, na.rm = T))
+
+## 二阶微分：确定极值点
+data.use$diff.diff <- abs(c(NA, diff(data.use$diff) / diff(data.use$pseudotime)))
+
+ggplot(data.use, aes(pseudotime, DP, color = celltype, group = celltype)) +
+  geom_point(size = .5) +
+  geom_vline(xintercept = c(0.069, 0.156)) +
+  geom_point(aes(pseudotime, fitted), color = "red", size = .1) +
+  geom_point(aes(pseudotime, diff), color = "blue", size = .1) +
+  ggsci::scale_color_d3() +
+  guides(color = guide_legend(override.aes = list(size = 4))) +
+  theme_classic(base_size = 15)
+
+data.DP <- data.use
+
+## Key molecular events
+source("R/compute_module_score.R")
+pathway <- readLines("resource/h.all.v2022.1.Hs.symbols.gmt")
+gene.list <- lapply(strsplit(pathway, split = "\t"), function(xx) xx[-c(1,2)])
+names(gene.list) <- sapply(strsplit(pathway, split = "\t"), function(xx) xx[1])
+
+## 17s
+system.time({
+  seu.early <- ComputeModuleScore(seu.early, gene.sets = gene.list, min.size = 20, cores = 10)
+})
+DefaultAssay(seu.early) <- "AUCell"
+
+data.use <- FetchData(seu.early, vars = c(rownames(seu.early), "pseudotime", "DP", "celltype"))
+dim(data.use)
+
+colnames(data.use) <- gsub("-", ".", colnames(data.use))
+colnames(data.use) <- sub("^HALLMARK.", "", colnames(data.use))
+dvars <- setdiff(colnames(data.use), c("pseudotime", "DP", "celltype"))
+dvars <- tolower(dvars) %>% Hmisc::capitalize()
+colnames(data.use) <- c(dvars, c("pseudotime", "DP", "celltype"))
+
+cor.test <- cor(data.use[, dvars], data.use$DP)
+
+cor.res.df <- data.frame(
+  term = rownames(cor.test),
+  corr = cor.test[,1]
+)
+
+cor.res.df <- arrange(cor.res.df, desc(corr))
+cor.res.df$rank <- 1:nrow(cor.res.df)
+
+ggplot(cor.res.df, aes(rank, corr)) +
+  geom_point()
+
+ggplot(data.use, aes(pseudotime, `Oxidative.phosphorylation`)) +
+  geom_point(size = .5, aes(color = celltype)) +
+  geom_point(inherit.aes = F, data = data.DP, aes(pseudotime, diff/3), size = .2, color = "red") +
+  geom_smooth() +
+  # scale_color_viridis_c() +
+  geom_vline(xintercept = c(0.069, 0.156)) +
+  theme_classic(base_size = 15)
+
+## Metabolism remodel (有氧呼吸 上调)
 ```
