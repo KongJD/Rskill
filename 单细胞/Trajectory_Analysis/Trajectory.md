@@ -753,9 +753,6 @@ library(Seurat)
 library(tidyverse)
 library(patchwork)
 
-setwd(here::here())
-
-#### Load data ####
 seu <- qs::qread("tmp/HS_BM_donor1.seurat.lineage.qs")
 
 ## Imputation by `MAGIC`(https://github.com/KrishnaswamyLab/MAGIC)
