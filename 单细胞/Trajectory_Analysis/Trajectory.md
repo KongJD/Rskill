@@ -809,3 +809,133 @@ top5.seudo <- head(arrange(vd.res, desc(pseudotime.bin))$gene)
 FeaturePlot(seu.magic, reduction = "fr", features = c(top5.mono, top5.CLP), ncol = 6) &
   scale_color_viridis_c()
 ```
+
+#### 8.趋势表达基因聚类
+
+```R
+library(Seurat)
+library(tidyverse)
+source("R/magic_utils.R")
+
+## Load data
+seu <- qs::qread("tmp/HS_BM_donor1.seurat.magic.qs")
+DefaultAssay(seu) <- "MAGIC_RNA"
+
+seu.Ery <- subset(seu, lineage.finetune.Ery)
+
+vd.res <- readRDS("tmp/10.Ery-lineage_DEGs_VD.rds")
+dynamic.features <- subset(vd.res, pseudotime.bin > 0.5)$gene
+
+imputed.matrix <- FetchData(seu.Ery, vars = c(vd.res$gene, "pseudotime"))
+
+dremi <- CalculateKnnDREMI(imputed.matrix = imputed.matrix,
+                           source.gene = "pseudotime",
+                           target.genes = c("HBB", "GATA2", "GATA1"),
+                           return.drevi = T,
+                           n.bins = 20,
+                           n.cores = 1)
+
+DREVIPlot(dremi$drevi$HBB) + labs(x = "pseudotime", y = "HBB")
+DREVIPlot(dremi$drevi$GATA2) + labs(x = "pseudotime", y = "GATA2")
+DREVIPlot(dremi$drevi$GATA1) + labs(x = "pseudotime", y = "GATA1")
+
+## ~ 3 min
+system.time({
+  dremi <- CalculateKnnDREMI(imputed.matrix = imputed.matrix,
+                             source.gene = "pseudotime",
+                             target.genes = dynamic.features,
+                             return.drevi = T,
+                             n.cores = 10)
+})
+
+## DREMI: conditional-Density Resampled Estimate of Mutual Information
+## DREMI score is also a good metric for identify dynamic features
+dremi$dremi$frac.var.pst <- vd.res[dynamic.features, "pseudotime.bin"]
+ggplot(dremi$dremi, aes(dremi_score, frac.var.pst)) +
+  geom_point(size = .4)
+
+## cluster on DREVI
+drevi.mat <- sapply(dremi$drevi, as.vector)
+dim(drevi.mat)
+
+drevi.fit.mat <- sapply(dremi$drevi, function(xx) {
+  bins = 20
+  FitSpineCurveOnDREVI(xx, bins)[1:bins, "smooth", drop=T]
+})
+dim(drevi.fit.mat)
+correlation.dist <- as.dist(1 - cor(drevi.fit.mat))
+
+library(dendextend)
+library(ggsci)
+
+k = 10
+row_dend <- as.dendrogram(hclust(correlation.dist, method = "complete"))
+clusters <- cutree(row_dend, k = k) # dendextend::cutree()
+row_dend = color_branches(row_dend, k = k, col = pal_d3("category20")(k))
+plot(row_dend, leaflab = "none")
+
+## average DREVI
+cluster.levels <- 1:k
+drevi.mat.avg <- sapply(cluster.levels, function(i) {
+  rowMeans(drevi.mat[, names(clusters)[clusters == i], drop = F])
+})
+
+p.list <- lapply(cluster.levels, function(i) {
+  DREVIPlot(drevi.mat.avg[, i]) +
+    labs(title = glue::glue("cluster {i}"), x = "pseudotime", y = "")
+})
+cowplot::plot_grid(plotlist = p.list, ncol = 5)
+
+## order clusters
+orders.df <- OrderClusters(drevi.mat.avg)
+orders.df
+
+cluster.levels <- orders.df$cluster
+cluster.levels <- c(8,5,10,6,7,3,1,9,4,2)
+
+p.list <- lapply(cluster.levels, function(i) {
+  DREVIPlot(drevi.mat.avg[, i]) +
+    labs(title = glue::glue("cluster {i}"), x = "pseudotime", y = "")
+})
+cowplot::plot_grid(plotlist = p.list, ncol = 5)
+
+## save results
+cluster.res <- data.frame(
+  gene_name = names(clusters),
+  cluster = factor(clusters, cluster.levels)
+)
+cluster.res$cluster.rename <- as.integer(cluster.res$cluster)
+rownames(cluster.res) <- cluster.res$gene
+cluster.res <- inner_join(cluster.res, dremi$dremi)
+
+## reorder
+drevi.mat.avg.reorder <- drevi.mat.avg[, cluster.levels]
+p.list <- lapply(sort(unique(cluster.res$cluster.rename)), function(i) {
+  DREVIPlot(drevi.mat.avg.reorder[, i]) +
+    labs(title = glue::glue("cluster {i}"), x = "pseudotime", y = "")
+})
+cowplot::plot_grid(plotlist = p.list, ncol = 5)
+
+write.table(cluster.res, "tmp/HS_BM_donor1.Ery_lineage.dynamic_genes.txt", sep = "\t", quote = F)
+
+## functional enrichment
+library(clusterProfiler)
+source("R/clusterProfiler_utils.R")
+t2g <- read.gmt("resource/h.all.v2022.1.Hs.symbols.gmt")
+
+eres.list <- lapply(sort(unique(cluster.res$cluster.rename)), function(clu) {
+  genes <- subset(cluster.res, cluster.rename == clu)$gene
+  enricher(gene = genes, TERM2GENE = t2g, pvalueCutoff = 1, minGSSize = 0)
+})
+names(eres.list) <- sort(unique(cluster.res$cluster.rename))
+
+## plot
+dotplot2(eres.list, topN = 5)
+
+Idents(seu.Ery) <- seu.Ery$celltype
+FeatureScatter(seu.Ery, feature1 = "pseudotime", feature2 = "GATA2") +
+  geom_smooth()
+
+DREVIPlot(dremi$drevi$SH3BGRL3) + labs(x = "pseudotime", y = "LMO4")
+DREVIPlot(dremi$drevi$GATA2) + labs(x = "pseudotime", y = "GATA2")
+```
