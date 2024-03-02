@@ -130,3 +130,65 @@ pancorplot <- function(data = plotdf, anotate = "none") {
 pancorplot(plotdf)
 pancorplot(plotdf, anotate = c("BRCA"))
 pancorplot(plotdf, anotate = c("BRCA", "GBM"))
+
+##########################################################
+library(ggplot2)
+library(ggrepel)
+data <- allDiff
+data$gene <- rownames(data)
+logFCfilter = 1.5
+logFCcolor = 3
+### 标记上下调
+index = data$adj.P.Val < 0.05 & abs(data$logFC) > logFCfilter
+data$group <- 0
+data$group[index & data$logFC > 0] = 1
+data$group[index & data$logFC < 0] = -1
+data$group <- factor(data$group, levels = c(1, 0, -1), labels = c("Up", "NS", "Down"))
+### 正式画图
+ggplot(data = data, aes(x = logFC, y = -log10(adj.P.Val), color = group)) +
+  geom_point(alpha = 0.8, size = 1.2) +
+  scale_color_manual(values = c("red", "grey50", "blue4")) +
+  labs(x = "log2 (fold change)", y = "-log10 (adj.P.Val)") +
+  theme(plot.title = element_text(hjust = 0.4)) +
+  geom_hline(yintercept = -log10(0.05), lty = 4, lwd = 0.6, alpha = 0.8) +
+  geom_vline(xintercept = c(-logFCfilter, logFCfilter), lty = 4, lwd = 0.6, alpha = 0.8) +
+  theme_bw() +
+  theme(panel.border = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(colour = "black")) +
+  theme(legend.position = "top") +
+  geom_point(data = subset(data, abs(logFC) >= logFCcolor & adj.P.Val < 0.05), alpha = 0.8, size = 3, col = "green4") +
+  geom_text_repel(data = subset(data, abs(logFC) >= logFCcolor & adj.P.Val < 0.05),
+                  aes(label = gene), col = "black", alpha = 0.8)
+
+
+library(ggplot2)
+library(ggrepel)
+data <- allDiff
+data$gene <- rownames(data)
+logFCfilter = 1
+logFCcolor = 3
+### 标记上下调
+index = data$adj.P.Val < 0.05 & abs(data$logFC) > logFCfilter
+data$group <- 0
+data$group[index & data$logFC > 0] = 1
+data$group[index & data$logFC < 0] = -1
+data$group <- factor(data$group, levels = c(1, 0, -1), labels = c("Up", "NS", "Down"))
+### 正式画图
+ggplot(data = data, aes(x = log2(AveExpr), y = logFC, color = group)) +
+  geom_point(alpha = 0.8, size = 1.2) +
+  scale_color_manual(values = c("darkred", "grey50", "royalblue4")) +
+  labs(y = "log2 (Fold Change)", x = "log2 (Base Mean)") +
+  theme(plot.title = element_text(hjust = 0.4)) +
+  geom_hline(yintercept = c(logFCfilter, -logFCfilter), lty = 2, lwd = 1) +
+  geom_hline(yintercept = 0, lwd = 1.2) +
+  theme_bw() +
+  theme(panel.border = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(colour = "black")) +
+  theme(legend.position = "top") +
+  geom_point(data = subset(data, abs(logFC) >= logFCcolor & adj.P.Val < 0.05), alpha = 0.8, size = 3, col = "green4") +
+  geom_text_repel(data = subset(data, abs(logFC) >= logFCcolor & adj.P.Val < 0.05),
+                  aes(label = gene), col = "black", alpha = 0.8)
