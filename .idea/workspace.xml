@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="33ac6df1-31f9-4d6a-adc6-b28a3cda527b" name="Changes" comment="空间转录组">
+    <list default="true" id="33ac6df1-31f9-4d6a-adc6-b28a3cda527b" name="Changes" comment="宏基因组">
       <change beforePath="$PROJECT_DIR$/微生物组/宏基因组/宏基因组.md" beforeDir="false" afterPath="$PROJECT_DIR$/微生物组/宏基因组/宏基因组.md" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -119,15 +119,7 @@
       <workItem from="1710338455169" duration="396000" />
       <workItem from="1711781066863" duration="1774000" />
       <workItem from="1711862531870" duration="852000" />
-      <workItem from="1712329541270" duration="487000" />
-    </task>
-    <task id="LOCAL-00153" summary="单细胞之RM">
-      <option name="closed" value="true" />
-      <created>1708063548927</created>
-      <option name="number" value="00153" />
-      <option name="presentableId" value="LOCAL-00153" />
-      <option name="project" value="LOCAL" />
-      <updated>1708063548927</updated>
+      <workItem from="1712329541270" duration="872000" />
     </task>
     <task id="LOCAL-00154" summary="单细胞之RM">
       <option name="closed" value="true" />
@@ -513,7 +505,15 @@
       <option name="project" value="LOCAL" />
       <updated>1711809689730</updated>
     </task>
-    <option name="localTasksCounter" value="202" />
+    <task id="LOCAL-00202" summary="宏基因组">
+      <option name="closed" value="true" />
+      <created>1712330173174</created>
+      <option name="number" value="00202" />
+      <option name="presentableId" value="LOCAL-00202" />
+      <option name="project" value="LOCAL" />
+      <updated>1712330173174</updated>
+    </task>
+    <option name="localTasksCounter" value="203" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -531,7 +531,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="GEO" />
     <MESSAGE value="单细胞" />
     <MESSAGE value="other" />
     <MESSAGE value="甲基化" />
@@ -556,6 +555,7 @@
     <MESSAGE value="单细胞之轨迹分析" />
     <MESSAGE value="tmp代码" />
     <MESSAGE value="空间转录组" />
-    <option name="LAST_COMMIT_MESSAGE" value="空间转录组" />
+    <MESSAGE value="宏基因组" />
+    <option name="LAST_COMMIT_MESSAGE" value="宏基因组" />
   </component>
 </project>
