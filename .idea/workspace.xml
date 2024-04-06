@@ -4,8 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="33ac6df1-31f9-4d6a-adc6-b28a3cda527b" name="Changes" comment="宏基因组">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+    <list default="true" id="33ac6df1-31f9-4d6a-adc6-b28a3cda527b" name="Changes" comment="多模态">
+      <change beforePath="$PROJECT_DIR$/单细胞/多模态/GeneFormer.md" beforeDir="false" afterPath="$PROJECT_DIR$/单细胞/多模态/GeneFormer.md" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -44,21 +44,21 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
-    &quot;last_opened_file_path&quot;: &quot;D:/BaiduNetdiskDownload/更新/05_GZ_空间转录组/GZ_ST&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;terminal&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "git-widget-placeholder": "master",
+    "last_opened_file_path": "D:/BaiduNetdiskDownload/果子学生信SCMST单细胞大师班/01_大师核心专题/02_scMST_虚拟扰动Genefomer/scMST_Geneformer",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "terminal",
+    "vue.rearranger.settings.migration": "true"
   }
-}</component>
+}]]></component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
@@ -120,15 +120,7 @@
       <workItem from="1711781066863" duration="1774000" />
       <workItem from="1711862531870" duration="852000" />
       <workItem from="1712329541270" duration="1623000" />
-      <workItem from="1712388069458" duration="636000" />
-    </task>
-    <task id="LOCAL-00158" summary="单细胞之RM">
-      <option name="closed" value="true" />
-      <created>1708082993124</created>
-      <option name="number" value="00158" />
-      <option name="presentableId" value="LOCAL-00158" />
-      <option name="project" value="LOCAL" />
-      <updated>1708082993124</updated>
+      <workItem from="1712388069458" duration="1629000" />
     </task>
     <task id="LOCAL-00159" summary="单细胞之RM">
       <option name="closed" value="true" />
@@ -514,7 +506,15 @@
       <option name="project" value="LOCAL" />
       <updated>1712330677589</updated>
     </task>
-    <option name="localTasksCounter" value="207" />
+    <task id="LOCAL-00207" summary="多模态">
+      <option name="closed" value="true" />
+      <created>1712389549552</created>
+      <option name="number" value="00207" />
+      <option name="presentableId" value="LOCAL-00207" />
+      <option name="project" value="LOCAL" />
+      <updated>1712389549552</updated>
+    </task>
+    <option name="localTasksCounter" value="208" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -532,7 +532,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="单细胞" />
     <MESSAGE value="other" />
     <MESSAGE value="甲基化" />
     <MESSAGE value="TCGA" />
@@ -557,6 +556,7 @@
     <MESSAGE value="tmp代码" />
     <MESSAGE value="空间转录组" />
     <MESSAGE value="宏基因组" />
-    <option name="LAST_COMMIT_MESSAGE" value="宏基因组" />
+    <MESSAGE value="多模态" />
+    <option name="LAST_COMMIT_MESSAGE" value="多模态" />
   </component>
 </project>
