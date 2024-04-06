@@ -5,7 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="33ac6df1-31f9-4d6a-adc6-b28a3cda527b" name="Changes" comment="宏基因组">
-      <change beforePath="$PROJECT_DIR$/微生物组/宏基因组/宏基因组.md" beforeDir="false" afterPath="$PROJECT_DIR$/微生物组/宏基因组/宏基因组.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -119,39 +119,8 @@
       <workItem from="1710338455169" duration="396000" />
       <workItem from="1711781066863" duration="1774000" />
       <workItem from="1711862531870" duration="852000" />
-      <workItem from="1712329541270" duration="872000" />
-    </task>
-    <task id="LOCAL-00154" summary="单细胞之RM">
-      <option name="closed" value="true" />
-      <created>1708065714396</created>
-      <option name="number" value="00154" />
-      <option name="presentableId" value="LOCAL-00154" />
-      <option name="project" value="LOCAL" />
-      <updated>1708065714396</updated>
-    </task>
-    <task id="LOCAL-00155" summary="单细胞之RM">
-      <option name="closed" value="true" />
-      <created>1708073945693</created>
-      <option name="number" value="00155" />
-      <option name="presentableId" value="LOCAL-00155" />
-      <option name="project" value="LOCAL" />
-      <updated>1708073945693</updated>
-    </task>
-    <task id="LOCAL-00156" summary="单细胞之RM">
-      <option name="closed" value="true" />
-      <created>1708074036980</created>
-      <option name="number" value="00156" />
-      <option name="presentableId" value="LOCAL-00156" />
-      <option name="project" value="LOCAL" />
-      <updated>1708074036980</updated>
-    </task>
-    <task id="LOCAL-00157" summary="单细胞之RM">
-      <option name="closed" value="true" />
-      <created>1708082202356</created>
-      <option name="number" value="00157" />
-      <option name="presentableId" value="LOCAL-00157" />
-      <option name="project" value="LOCAL" />
-      <updated>1708082202356</updated>
+      <workItem from="1712329541270" duration="1623000" />
+      <workItem from="1712388069458" duration="636000" />
     </task>
     <task id="LOCAL-00158" summary="单细胞之RM">
       <option name="closed" value="true" />
@@ -513,7 +482,39 @@
       <option name="project" value="LOCAL" />
       <updated>1712330173174</updated>
     </task>
-    <option name="localTasksCounter" value="203" />
+    <task id="LOCAL-00203" summary="宏基因组">
+      <option name="closed" value="true" />
+      <created>1712330419858</created>
+      <option name="number" value="00203" />
+      <option name="presentableId" value="LOCAL-00203" />
+      <option name="project" value="LOCAL" />
+      <updated>1712330419858</updated>
+    </task>
+    <task id="LOCAL-00204" summary="宏基因组">
+      <option name="closed" value="true" />
+      <created>1712330452293</created>
+      <option name="number" value="00204" />
+      <option name="presentableId" value="LOCAL-00204" />
+      <option name="project" value="LOCAL" />
+      <updated>1712330452293</updated>
+    </task>
+    <task id="LOCAL-00205" summary="宏基因组">
+      <option name="closed" value="true" />
+      <created>1712330674848</created>
+      <option name="number" value="00205" />
+      <option name="presentableId" value="LOCAL-00205" />
+      <option name="project" value="LOCAL" />
+      <updated>1712330674848</updated>
+    </task>
+    <task id="LOCAL-00206" summary="宏基因组">
+      <option name="closed" value="true" />
+      <created>1712330677589</created>
+      <option name="number" value="00206" />
+      <option name="presentableId" value="LOCAL-00206" />
+      <option name="project" value="LOCAL" />
+      <updated>1712330677589</updated>
+    </task>
+    <option name="localTasksCounter" value="207" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
